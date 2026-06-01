@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if object %}Editar pagamento{% else %}Registrar pagamento{% endif %} | Eletronics Store
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Pedido #{{ pedido.id }}</p>
+        <h1>{% if object %}Editar pagamento{% else %}Registrar pagamento{% endif %}</h1>
+    </div>
+    <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Voltar</a>
+</section>
+
+<form class="form-panel" method="post">
+    {% csrf_token %}
+
+    <div class="form-grid">
+        <label>
+            <span>Forma</span>
+            {{ form.forma }}
+            {{ form.forma.errors }}
+        </label>
+
+        <label>
+            <span>Status</span>
+            {{ form.status }}
+            {{ form.status.errors }}
+        </label>
+
+        <label>
+            <span>Valor</span>
+            {{ form.valor }}
+            {{ form.valor.errors }}
+        </label>
+
+        <label>
+            <span>Pago em</span>
+            {{ form.pago_em }}
+            {{ form.pago_em.errors }}
+        </label>
+
+        <label class="span-2">
+            <span>Codigo da transacao</span>
+            {{ form.codigo_transacao }}
+            {{ form.codigo_transacao.errors }}
+        </label>
+    </div>
+
+    <div class="form-actions">
+        <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Cancelar</a>
+        <button class="button primary" type="submit">Salvar</button>
+    </div>
+</form>
+{% endblock %}

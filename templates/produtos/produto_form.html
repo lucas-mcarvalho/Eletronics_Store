@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if object %}Editar produto{% else %}Novo produto{% endif %} | Eletronics Store
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Produtos</p>
+        <h1>{% if object %}Editar produto{% else %}Novo produto{% endif %}</h1>
+    </div>
+    <a class="button ghost" href="{% url 'produto_listar' %}">Voltar</a>
+</section>
+
+<form class="form-panel" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="form-grid">
+        <label>
+            <span>Nome</span>
+            {{ form.nome }}
+            {{ form.nome.errors }}
+        </label>
+
+        <label>
+            <span>Categoria</span>
+            {{ form.categoria }}
+            {{ form.categoria.errors }}
+        </label>
+
+        <label>
+            <span>Preco</span>
+            {{ form.preco }}
+            {{ form.preco.errors }}
+        </label>
+
+        <label>
+            <span>Estoque</span>
+            {{ form.estoque }}
+            {{ form.estoque.errors }}
+        </label>
+
+        <label>
+            <span>Modelo</span>
+            {{ form.modelo }}
+            {{ form.modelo.errors }}
+        </label>
+
+        <label>
+            <span>Garantia em meses</span>
+            {{ form.garantia_meses }}
+            {{ form.garantia_meses.errors }}
+        </label>
+
+        <label class="span-2">
+            <span>Imagem</span>
+            {{ form.imagem }}
+            {{ form.imagem.errors }}
+        </label>
+
+        <label class="span-2">
+            <span>Descricao</span>
+            {{ form.descricao }}
+            {{ form.descricao.errors }}
+        </label>
+
+        <label class="checkbox-field">
+            {{ form.ativo }}
+            <span>Produto ativo</span>
+            {{ form.ativo.errors }}
+        </label>
+    </div>
+
+    <div class="form-actions">
+        <a class="button ghost" href="{% url 'produto_listar' %}">Cancelar</a>
+        <button class="button primary" type="submit">Salvar</button>
+    </div>
+</form>
+{% endblock %}

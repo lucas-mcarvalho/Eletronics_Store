@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Loja | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Loja</p>
+        <h1>Comprar produtos</h1>
+    </div>
+    <div class="header-actions">
+        <a class="button ghost" href="{% url 'carrinho_detalhar' %}">Carrinho</a>
+        <a class="button ghost" href="{% url 'pedido_listar' %}">Meus pedidos</a>
+    </div>
+</section>
+
+{% if produtos %}
+    <section class="product-grid">
+        {% for produto in produtos %}
+            <article class="product-card">
+                {% if produto.imagem %}
+                    <img class="product-image" src="{{ produto.imagem.url }}" alt="{{ produto.nome }}">
+                {% else %}
+                    <div class="product-image placeholder">Sem imagem</div>
+                {% endif %}
+
+                <div class="product-body">
+                    <span class="badge muted">{{ produto.categoria.nome }}</span>
+                    <h2>{{ produto.nome }}</h2>
+                    {% if produto.modelo %}
+                        <p class="muted-text">{{ produto.modelo }}</p>
+                    {% endif %}
+                    <p>{{ produto.descricao|truncatechars:110 }}</p>
+                    <strong class="price">R$ {{ produto.preco }}</strong>
+                    <small>{{ produto.estoque }} em estoque</small>
+                </div>
+
+                <form class="buy-form" method="post" action="{% url 'adicionar_carrinho' produto.id %}">
+                    {% csrf_token %}
+                    <input type="number" name="quantidade" min="1" max="{{ produto.estoque }}" value="1">
+                    <button class="button primary" type="submit">Adicionar</button>
+                </form>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="table-panel">
+        <div class="empty-state">
+            <h2>Nenhum produto disponivel</h2>
+            <p>Volte mais tarde para ver os produtos liberados para compra.</p>
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Excluir pedido | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Pedidos</p>
+        <h1>Excluir pedido</h1>
+    </div>
+    <a class="button ghost" href="{% url 'pedido_listar' %}">Voltar</a>
+</section>
+
+<form class="confirm-panel" method="post">
+    {% csrf_token %}
+    <h2>Pedido #{{ object.id }}</h2>
+    <p>Tem certeza que deseja excluir este pedido?</p>
+
+    <div class="form-actions">
+        <a class="button ghost" href="{% url 'pedido_listar' %}">Cancelar</a>
+        <button class="button danger" type="submit">Excluir</button>
+    </div>
+</form>
+{% endblock %}

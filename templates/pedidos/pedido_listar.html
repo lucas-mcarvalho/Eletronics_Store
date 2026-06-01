@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Pedidos | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Vendas</p>
+        <h1>Pedidos</h1>
+    </div>
+    {% if request.jwt_user.is_staff %}
+        <a class="button primary" href="{% url 'pedido_cadastrar' %}">Novo pedido</a>
+    {% else %}
+        <a class="button primary" href="{% url 'loja_home' %}">Comprar produtos</a>
+    {% endif %}
+</section>
+
+<section class="table-panel">
+    {% if pedidos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Pedido</th>
+                    <th>Usuario</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Criado em</th>
+                    <th class="actions">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                    <tr>
+                        <td><strong>#{{ pedido.id }}</strong></td>
+                        <td>{{ pedido.usuario.username }}</td>
+                        <td><span class="badge muted">{{ pedido.get_status_display }}</span></td>
+                        <td>R$ {{ pedido.valor_total }}</td>
+                        <td>{{ pedido.criado_em|date:'d/m/Y H:i' }}</td>
+                        <td class="actions">
+                            <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Abrir</a>
+                            {% if request.jwt_user.is_staff %}
+                                <a class="button ghost" href="{% url 'pedido_editar' pedido.id %}">Editar</a>
+                                <a class="button danger" href="{% url 'pedido_excluir' pedido.id %}">Excluir</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <h2>Nenhum pedido cadastrado</h2>
+            <p>{% if request.jwt_user.is_staff %}Crie um pedido, adicione itens e depois registre o pagamento.{% else %}Compre um produto para gerar seu primeiro pedido.{% endif %}</p>
+            {% if request.jwt_user.is_staff %}
+                <a class="button primary" href="{% url 'pedido_cadastrar' %}">Criar pedido</a>
+            {% else %}
+                <a class="button primary" href="{% url 'loja_home' %}">Ir para loja</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

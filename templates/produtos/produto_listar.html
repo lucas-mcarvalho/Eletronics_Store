@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Produtos | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Catalogo</p>
+        <h1>Produtos</h1>
+    </div>
+    <a class="button primary" href="{% url 'produto_cadastrar' %}">Novo produto</a>
+</section>
+
+<section class="table-panel">
+    {% if produtos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Imagem</th>
+                    <th>Produto</th>
+                    <th>Categoria</th>
+                    <th>SKU</th>
+                    <th>Preco</th>
+                    <th>Estoque</th>
+                    <th>Status</th>
+                    <th class="actions">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produto in produtos %}
+                    <tr>
+                        <td>
+                            {% if produto.imagem %}
+                                <img class="thumb" src="{{ produto.imagem.url }}" alt="{{ produto.nome }}">
+                            {% else %}
+                                <span class="thumb placeholder">Sem imagem</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ produto.nome }}</strong>
+                            {% if produto.modelo %}
+                                <small>{{ produto.modelo }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ produto.categoria.nome }}</td>
+                        <td><code>{{ produto.codigo_sku }}</code></td>
+                        <td>R$ {{ produto.preco }}</td>
+                        <td>{{ produto.estoque }}</td>
+                        <td>
+                            {% if produto.ativo %}
+                                <span class="badge success">Ativo</span>
+                            {% else %}
+                                <span class="badge muted">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            <a class="button ghost" href="{% url 'produto_editar' produto.id %}">Editar</a>
+                            <a class="button danger" href="{% url 'produto_excluir' produto.id %}">Excluir</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <h2>Nenhum produto cadastrado</h2>
+            <p>Cadastre o primeiro produto para testar lista, upload de imagem e SKU automatico.</p>
+            <a class="button primary" href="{% url 'produto_cadastrar' %}">Cadastrar produto</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Pedido #{{ pedido.id }} | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Pedido</p>
+        <h1>#{{ pedido.id }}</h1>
+    </div>
+    <div class="header-actions">
+        <a class="button ghost" href="{% url 'pedido_listar' %}">Voltar</a>
+        {% if request.jwt_user.is_staff %}
+            <a class="button primary" href="{% url 'item_pedido_cadastrar' pedido.id %}">Adicionar item</a>
+        {% else %}
+            <a class="button primary" href="{% url 'loja_home' %}">Comprar mais</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="summary-grid">
+    <article class="summary-box">
+        <span>Status</span>
+        <strong>{{ pedido.get_status_display }}</strong>
+    </article>
+    <article class="summary-box">
+        <span>Total</span>
+        <strong>R$ {{ pedido.valor_total }}</strong>
+    </article>
+    <article class="summary-box">
+        <span>Usuario</span>
+        <strong>{{ pedido.usuario.username }}</strong>
+    </article>
+</section>
+
+<section class="table-panel spaced">
+    <div class="panel-title">
+        <h2>Itens do pedido</h2>
+        {% if request.jwt_user.is_staff %}
+            <a class="button ghost" href="{% url 'item_pedido_cadastrar' pedido.id %}">Novo item</a>
+        {% endif %}
+    </div>
+
+    {% if pedido.itens.all %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Quantidade</th>
+                    <th>Preco unitario</th>
+                    <th>Subtotal</th>
+                    {% if request.jwt_user.is_staff %}
+                        <th class="actions">Acoes</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pedido.itens.all %}
+                    <tr>
+                        <td><strong>{{ item.produto.nome }}</strong></td>
+                        <td>{{ item.quantidade }}</td>
+                        <td>R$ {{ item.preco_unitario }}</td>
+                        <td>R$ {{ item.subtotal }}</td>
+                        {% if request.jwt_user.is_staff %}
+                            <td class="actions">
+                                <a class="button ghost" href="{% url 'item_pedido_editar' item.id %}">Editar</a>
+                                <a class="button danger" href="{% url 'item_pedido_excluir' item.id %}">Excluir</a>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <h2>Este pedido ainda nao tem itens</h2>
+            <p>Adicione produtos para calcular o total do pedido.</p>
+        </div>
+    {% endif %}
+</section>
+
+<section class="table-panel spaced">
+    <div class="panel-title">
+        <h2>Pagamento</h2>
+        {% if request.jwt_user.is_staff %}
+            {% if pedido.pagamento %}
+                <a class="button ghost" href="{% url 'pagamento_editar' pedido.pagamento.id %}">Editar pagamento</a>
+            {% else %}
+                <a class="button primary" href="{% url 'pagamento_cadastrar' pedido.id %}">Registrar pagamento</a>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {% if pedido.pagamento %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Forma</th>
+                    <th>Status</th>
+                    <th>Valor</th>
+                    <th>Codigo</th>
+                    <th>Pago em</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ pedido.pagamento.get_forma_display }}</td>
+                    <td><span class="badge success">{{ pedido.pagamento.get_status_display }}</span></td>
+                    <td>R$ {{ pedido.pagamento.valor }}</td>
+                    <td>{{ pedido.pagamento.codigo_transacao|default:'-' }}</td>
+                    <td>{{ pedido.pagamento.pago_em|date:'d/m/Y H:i'|default:'-' }}</td>
+                </tr>
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            {% if pedido.status == 'fechado' %}
+                <h2>Pedido finalizado</h2>
+                <p>Pagamento concluido no fluxo simples, sem metodo de pagamento cadastrado.</p>
+            {% elif pedido.status == 'aberto' %}
+                <h2>Pedido aberto</h2>
+                <p>Este pedido ainda esta em aberto.</p>
+            {% else %}
+                <h2>Pagamento pendente</h2>
+                <p>{% if request.jwt_user.is_staff %}Registre o pagamento quando o pedido estiver pronto.{% else %}O pagamento ainda nao foi registrado para este pedido.{% endif %}</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

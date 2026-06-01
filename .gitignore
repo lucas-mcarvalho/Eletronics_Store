@@ -21,3 +21,11 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+### Python/Django ###
+__pycache__/
+*.py[cod]
+venv/
+db.sqlite3
+media/
+static/

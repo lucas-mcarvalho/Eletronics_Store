@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Eletronics Store{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        {% if request.jwt_user.is_staff %}
+            <a class="brand" href="{% url 'admin_home' %}">Eletronics Store</a>
+        {% else %}
+            <a class="brand" href="{% url 'loja_home' %}">Eletronics Store</a>
+        {% endif %}
+        <nav class="nav">
+            {% if request.jwt_user.is_staff %}
+                <a href="{% url 'admin_home' %}">Painel</a>
+                <a href="{% url 'produto_listar' %}">Produtos</a>
+                <a href="{% url 'categoria_listar' %}">Categorias</a>
+                <a href="{% url 'pedido_listar' %}">Pedidos</a>
+                <a href="{% url 'admin:index' %}">Admin Django</a>
+            {% else %}
+                <a href="{% url 'loja_home' %}">Loja</a>
+                <a href="{% url 'carrinho_detalhar' %}">Carrinho</a>
+                <a href="{% url 'pedido_listar' %}">Meus pedidos</a>
+            {% endif %}
+            <a href="{% url 'logout' %}">Sair</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="message {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

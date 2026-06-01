@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if object %}Editar categoria{% else %}Nova categoria{% endif %} | Eletronics Store
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Categorias</p>
+        <h1>{% if object %}Editar categoria{% else %}Nova categoria{% endif %}</h1>
+    </div>
+    <a class="button ghost" href="{% url 'categoria_listar' %}">Voltar</a>
+</section>
+
+<form class="form-panel" method="post">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="form-grid">
+        <label class="span-2">
+            <span>Nome</span>
+            {{ form.nome }}
+            {{ form.nome.errors }}
+        </label>
+
+        <label class="span-2">
+            <span>Descricao</span>
+            {{ form.descricao }}
+            {{ form.descricao.errors }}
+        </label>
+
+        <label class="checkbox-field">
+            {{ form.ativo }}
+            <span>Categoria ativa</span>
+            {{ form.ativo.errors }}
+        </label>
+    </div>
+
+    <div class="form-actions">
+        <a class="button ghost" href="{% url 'categoria_listar' %}">Cancelar</a>
+        <button class="button primary" type="submit">Salvar</button>
+    </div>
+</form>
+{% endblock %}

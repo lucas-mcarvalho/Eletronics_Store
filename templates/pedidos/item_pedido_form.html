@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if object %}Editar item{% else %}Novo item{% endif %} | Eletronics Store
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Pedido #{{ pedido.id }}</p>
+        <h1>{% if object %}Editar item{% else %}Novo item{% endif %}</h1>
+    </div>
+    <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Voltar</a>
+</section>
+
+<form class="form-panel" method="post">
+    {% csrf_token %}
+
+    <div class="form-grid">
+        <label>
+            <span>Produto</span>
+            {{ form.produto }}
+            {{ form.produto.errors }}
+        </label>
+
+        <label>
+            <span>Quantidade</span>
+            {{ form.quantidade }}
+            {{ form.quantidade.errors }}
+        </label>
+    </div>
+
+    <div class="form-actions">
+        <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Cancelar</a>
+        <button class="button primary" type="submit">Salvar</button>
+    </div>
+</form>
+{% endblock %}

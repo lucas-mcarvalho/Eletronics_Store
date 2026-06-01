@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Carrinho | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Carrinho</p>
+        <h1>Seu carrinho</h1>
+    </div>
+    <a class="button ghost" href="{% url 'loja_home' %}">Continuar comprando</a>
+</section>
+
+{% if carrinho and carrinho.itens.all %}
+    <section class="table-panel">
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Preco</th>
+                    <th>Quantidade</th>
+                    <th>Subtotal</th>
+                    <th class="actions">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in carrinho.itens.all %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.produto.nome }}</strong>
+                            <small>{{ item.produto.estoque }} disponivel em estoque</small>
+                        </td>
+                        <td>R$ {{ item.preco_unitario }}</td>
+                        <td>
+                            <form class="quantity-form" method="post" action="{% url 'atualizar_item_carrinho' item.id %}">
+                                {% csrf_token %}
+                                <input type="number" name="quantidade" min="1" max="{{ item.produto.estoque }}" value="{{ item.quantidade }}">
+                                <button class="button ghost" type="submit">Atualizar</button>
+                            </form>
+                        </td>
+                        <td>R$ {{ item.subtotal }}</td>
+                        <td class="actions">
+                            <form method="post" action="{% url 'remover_item_carrinho' item.id %}">
+                                {% csrf_token %}
+                                <button class="button danger" type="submit">Remover</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="cart-footer">
+        <div>
+            <span>Total</span>
+            <strong>R$ {{ carrinho.valor_total }}</strong>
+        </div>
+        <form method="post" action="{% url 'finalizar_carrinho' %}">
+            {% csrf_token %}
+            <button class="button primary" type="submit">Finalizar pedido</button>
+        </form>
+    </section>
+{% else %}
+    <section class="table-panel">
+        <div class="empty-state">
+            <h2>Seu carrinho esta vazio</h2>
+            <p>Adicione produtos da loja antes de finalizar o pedido.</p>
+            <a class="button primary" href="{% url 'loja_home' %}">Ir para loja</a>
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

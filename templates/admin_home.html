@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Painel Admin | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Administracao</p>
+        <h1>Painel do admin</h1>
+    </div>
+    <a class="button ghost" href="{% url 'admin:index' %}">Admin Django</a>
+</section>
+
+<section class="summary-grid">
+    <article class="summary-box">
+        <span>Produtos</span>
+        <strong>{{ total_produtos }}</strong>
+    </article>
+    <article class="summary-box">
+        <span>Categorias</span>
+        <strong>{{ total_categorias }}</strong>
+    </article>
+    <article class="summary-box">
+        <span>Pedidos</span>
+        <strong>{{ total_pedidos }}</strong>
+    </article>
+</section>
+
+<section class="admin-actions">
+    <a class="admin-action" href="{% url 'produto_listar' %}">
+        <strong>Gerenciar produtos</strong>
+        <span>Cadastrar, editar estoque, preco e imagem.</span>
+    </a>
+    <a class="admin-action" href="{% url 'categoria_listar' %}">
+        <strong>Gerenciar categorias</strong>
+        <span>Organizar os produtos da loja.</span>
+    </a>
+    <a class="admin-action" href="{% url 'pedido_listar' %}">
+        <strong>Ver pedidos</strong>
+        <span>Acompanhar compras e pagamentos.</span>
+    </a>
+</section>
+
+<section class="table-panel spaced">
+    <div class="panel-title">
+        <h2>Pedidos recentes</h2>
+        <a class="button ghost" href="{% url 'pedido_listar' %}">Ver todos</a>
+    </div>
+
+    {% if pedidos_recentes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Pedido</th>
+                    <th>Usuario</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th class="actions">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos_recentes %}
+                    <tr>
+                        <td><strong>#{{ pedido.id }}</strong></td>
+                        <td>{{ pedido.usuario.username }}</td>
+                        <td><span class="badge muted">{{ pedido.get_status_display }}</span></td>
+                        <td>R$ {{ pedido.valor_total }}</td>
+                        <td class="actions">
+                            <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Abrir</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <h2>Nenhum pedido ainda</h2>
+            <p>Os pedidos feitos pelos usuarios vao aparecer aqui.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

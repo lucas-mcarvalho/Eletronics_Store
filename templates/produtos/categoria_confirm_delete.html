@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Excluir categoria | Eletronics Store{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Categorias</p>
+        <h1>Excluir categoria</h1>
+    </div>
+    <a class="button ghost" href="{% url 'categoria_listar' %}">Voltar</a>
+</section>
+
+<form class="confirm-panel" method="post">
+    {% csrf_token %}
+    <h2>{{ object.nome }}</h2>
+    <p>Tem certeza que deseja excluir esta categoria?</p>
+
+    <div class="form-actions">
+        <a class="button ghost" href="{% url 'categoria_listar' %}">Cancelar</a>
+        <button class="button danger" type="submit">Excluir</button>
+    </div>
+</form>
+{% endblock %}
