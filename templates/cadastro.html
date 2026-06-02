@@ -1,50 +1,48 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro | Eletronics Store</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-</head>
-<body class="login-page">
-    <main class="login-shell">
-        <section class="login-panel">
-            <div class="login-copy">
-                <p class="eyebrow">Nova conta</p>
-                <h1>Crie seu cadastro</h1>
-                <p>Com sua conta voce pode comprar produtos e acompanhar seus pedidos.</p>
-            </div>
+{% extends 'base.html' %}
 
-            <form class="login-form" method="post">
-                {% csrf_token %}
+{% block title %}Cadastro | Eletronics Store{% endblock %}
 
-                {% if form.non_field_errors %}
-                    <div class="message error">{{ form.non_field_errors }}</div>
-                {% endif %}
+{% block body_class %}login-page{% endblock %}
 
-                <label>
-                    <span>Usuario</span>
-                    {{ form.username }}
-                    {{ form.username.errors }}
-                </label>
+{% block main_class %}login-shell{% endblock %}
 
-                <label>
-                    <span>Senha</span>
-                    {{ form.password1 }}
-                    {{ form.password1.errors }}
-                </label>
+{% block header %}{% endblock %}
 
-                <label>
-                    <span>Confirmar senha</span>
-                    {{ form.password2 }}
-                    {{ form.password2.errors }}
-                </label>
+{% block content %}
+    <section class="login-panel">
+        <div class="login-copy">
+            <p class="eyebrow">Nova conta</p>
+            <h1>Crie seu cadastro</h1>
+            <p>Com sua conta voce pode comprar produtos e acompanhar seus pedidos.</p>
+        </div>
 
-                <button class="button primary" type="submit">Cadastrar</button>
-                <p class="form-link">Ja tem conta? <a href="{% url 'login' %}">Entrar</a></p>
-            </form>
-        </section>
-    </main>
-</body>
-</html>
+        <form class="login-form" method="post">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="message error">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <label>
+                <span>Usuario</span>
+                {{ form.username }}
+                {{ form.username.errors }}
+            </label>
+
+            <label>
+                <span>Senha</span>
+                {{ form.password1 }}
+                {{ form.password1.errors }}
+            </label>
+
+            <label>
+                <span>Confirmar senha</span>
+                {{ form.password2 }}
+                {{ form.password2.errors }}
+            </label>
+
+            <button class="button primary" type="submit">Cadastrar</button>
+            <p class="form-link">Ja tem conta? <a href="{% url 'login' %}">Entrar</a></p>
+        </form>
+    </section>
+{% endblock %}

@@ -1,42 +1,40 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Eletronics Store</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-</head>
-<body class="login-page">
-    <main class="login-shell">
-        <section class="login-panel">
-            <div class="login-copy">
-                <p class="eyebrow">Acesso restrito</p>
-                <h1>Eletronics Store</h1>
-                <p>Entre com seu usuario para gerenciar categorias, produtos, estoque e imagens.</p>
-            </div>
+{% extends 'base.html' %}
 
-            <form class="login-form" method="post">
-                {% csrf_token %}
+{% block title %}Login | Eletronics Store{% endblock %}
 
-                {% if mensagem %}
-                    <div class="message error">{{ mensagem }}</div>
-                {% endif %}
+{% block body_class %}login-page{% endblock %}
 
-                <label>
-                    <span>Usuario</span>
-                    <input type="text" name="usuario" autocomplete="username" required autofocus>
-                </label>
+{% block main_class %}login-shell{% endblock %}
 
-                <label>
-                    <span>Senha</span>
-                    <input type="password" name="senha" autocomplete="current-password" required>
-                </label>
+{% block header %}{% endblock %}
 
-                <button class="button primary" type="submit">Entrar</button>
-                <p class="form-link">Ainda nao tem conta? <a href="{% url 'cadastro' %}">Criar cadastro</a></p>
-            </form>
-        </section>
-    </main>
-</body>
-</html>
+{% block content %}
+    <section class="login-panel">
+        <div class="login-copy">
+            <p class="eyebrow">Acesso restrito</p>
+            <h1>Eletronics Store</h1>
+            <p>Entre com seu usuario para gerenciar categorias, produtos, estoque e imagens.</p>
+        </div>
+
+        <form class="login-form" method="post">
+            {% csrf_token %}
+
+            {% if mensagem %}
+                <div class="message error">{{ mensagem }}</div>
+            {% endif %}
+
+            <label>
+                <span>Usuario</span>
+                <input type="text" name="usuario" autocomplete="username" required autofocus>
+            </label>
+
+            <label>
+                <span>Senha</span>
+                <input type="password" name="senha" autocomplete="current-password" required>
+            </label>
+
+            <button class="button primary" type="submit">Entrar</button>
+            <p class="form-link">Ainda nao tem conta? <a href="{% url 'cadastro' %}">Criar cadastro</a></p>
+        </form>
+    </section>
+{% endblock %}
