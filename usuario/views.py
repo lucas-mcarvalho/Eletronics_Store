@@ -1,9 +1,9 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
-from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import redirect, render
 from django.views.generic import View
 
+from .forms import CadastroForm
 from .jwt import JWT_COOKIE_NAME, JWT_EXP_SECONDS, buscar_usuario_por_token, gerar_token
 from .mixins import AdminRequiredMixin
 
@@ -64,10 +64,10 @@ class Cadastro(View):
     template_name = 'cadastro.html'
 
     def get(self, request):
-        return render(request, self.template_name, {'form': UserCreationForm()})
+        return render(request, self.template_name, {'form': CadastroForm()})
 
     def post(self, request):
-        form = UserCreationForm(request.POST)
+        form = CadastroForm(request.POST)
 
         if not form.is_valid():
             return render(request, self.template_name, {'form': form})

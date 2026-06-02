@@ -3,52 +3,200 @@
 {% block title %}Loja | Eletronics Store{% endblock %}
 
 {% block content %}
-<section class="page-header">
-    <div>
-        <p class="eyebrow">Loja</p>
-        <h1>Comprar produtos</h1>
-    </div>
-    <div class="header-actions">
-        <a class="button ghost" href="{% url 'carrinho_detalhar' %}">Carrinho</a>
-        <a class="button ghost" href="{% url 'pedido_listar' %}">Meus pedidos</a>
+<section class="store-hero mb-4">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-7">
+            <p class="eyebrow mb-2">Loja</p>
+            <h1 class="store-hero-title">Produtos eletronicos para comprar agora</h1>
+            <p class="store-hero-copy">
+                Escolha os itens disponiveis, ajuste a quantidade e envie tudo direto para o carrinho.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" href="{% url 'carrinho_detalhar' %}">Ver carrinho</a>
+                <a class="btn btn-outline-secondary" href="{% url 'pedido_listar' %}">Meus pedidos</a>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="store-stat">
+                        <span>{{ produtos|length }}</span>
+                        <small>produtos ativos</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="store-stat accent">
+                        <span>24h</span>
+                        <small>para separar pedido</small>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="store-note">
+                        <strong>Compra simples</strong>
+                        <p>Os produtos adicionados ficam salvos no carrinho ate a finalizacao do pedido.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 
 {% if produtos %}
-    <section class="product-grid">
+    <section class="mb-4">
+        <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
+            <div>
+                <p class="eyebrow mb-1">Destaques</p>
+                <h2 class="section-title mb-0">Produtos em evidencia</h2>
+            </div>
+        </div>
+
+        <div id="produtosCarousel" class="carousel slide store-carousel" data-bs-ride="carousel">
+            <div class="carousel-indicators">
+                {% for produto in produtos %}
+                    <button type="button" data-bs-target="#produtosCarousel" data-bs-slide-to="{{ forloop.counter0 }}" class="{% if forloop.first %}active{% endif %}" {% if forloop.first %}aria-current="true"{% endif %} aria-label="Produto {{ forloop.counter }}"></button>
+                {% endfor %}
+            </div>
+
+            <div class="carousel-inner">
+                {% for produto in produtos %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                        <article class="store-featured-slide" data-cart-card>
+                            <div class="row g-0 align-items-stretch">
+                                <div class="col-lg-6">
+                                    {% if produto.imagem %}
+                                        <img class="store-featured-media" src="{{ produto.imagem.url }}" alt="{{ produto.nome }}">
+                                    {% else %}
+                                        <div class="store-featured-media store-placeholder">Sem imagem</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-lg-6">
+                                    <div class="store-featured-content">
+                                        <span class="badge text-bg-light border">{{ produto.categoria.nome }}</span>
+                                        <h3>{{ produto.nome }}</h3>
+                                        {% if produto.modelo %}
+                                            <p class="text-secondary mb-2">{{ produto.modelo }}</p>
+                                        {% endif %}
+                                        <p class="store-product-description">{{ produto.descricao|truncatechars:150 }}</p>
+
+                                        <div class="d-flex align-items-center justify-content-between gap-3">
+                                            <strong class="store-price">R$ {{ produto.preco }}</strong>
+                                            <span class="store-stock-pill">{{ produto.estoque }} em estoque</span>
+                                        </div>
+
+                                        <form class="row g-2 mt-3" method="post" action="{% url 'adicionar_carrinho' produto.id %}" data-add-to-cart-form>
+                                            {% csrf_token %}
+                                            <div class="col-4">
+                                                <input class="form-control store-quantity" type="number" name="quantidade" min="1" max="{{ produto.estoque }}" value="1" aria-label="Quantidade">
+                                            </div>
+                                            <div class="col-8">
+                                                <button class="btn btn-primary w-100" type="submit">Adicionar</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button class="carousel-control-prev" type="button" data-bs-target="#produtosCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Anterior</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#produtosCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Proximo</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="d-flex align-items-end justify-content-between gap-3 mb-3">
+        <div>
+            <p class="eyebrow mb-1">Catalogo</p>
+            <h2 class="section-title mb-0">Disponiveis em estoque</h2>
+        </div>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'carrinho_detalhar' %}">Finalizar depois</a>
+    </section>
+
+    <section class="row g-4">
         {% for produto in produtos %}
-            <article class="product-card">
-                {% if produto.imagem %}
-                    <img class="product-image" src="{{ produto.imagem.url }}" alt="{{ produto.nome }}">
-                {% else %}
-                    <div class="product-image placeholder">Sem imagem</div>
-                {% endif %}
-
-                <div class="product-body">
-                    <span class="badge muted">{{ produto.categoria.nome }}</span>
-                    <h2>{{ produto.nome }}</h2>
-                    {% if produto.modelo %}
-                        <p class="muted-text">{{ produto.modelo }}</p>
+            <div class="col-md-6 col-xl-4">
+                <article class="card store-product-card h-100" data-cart-card>
+                    {% if produto.imagem %}
+                        <img class="store-product-image" src="{{ produto.imagem.url }}" alt="{{ produto.nome }}">
+                    {% else %}
+                        <div class="store-product-image store-placeholder">Sem imagem</div>
                     {% endif %}
-                    <p>{{ produto.descricao|truncatechars:110 }}</p>
-                    <strong class="price">R$ {{ produto.preco }}</strong>
-                    <small>{{ produto.estoque }} em estoque</small>
-                </div>
 
-                <form class="buy-form" method="post" action="{% url 'adicionar_carrinho' produto.id %}">
-                    {% csrf_token %}
-                    <input type="number" name="quantidade" min="1" max="{{ produto.estoque }}" value="1">
-                    <button class="button primary" type="submit">Adicionar</button>
-                </form>
-            </article>
+                    <div class="card-body d-flex flex-column gap-3">
+                        <div>
+                            <span class="badge text-bg-light border">{{ produto.categoria.nome }}</span>
+                            <h2 class="store-product-title mt-3 mb-1">{{ produto.nome }}</h2>
+                            {% if produto.modelo %}
+                                <p class="text-secondary mb-2">{{ produto.modelo }}</p>
+                            {% endif %}
+                            <p class="store-product-description mb-0">{{ produto.descricao|truncatechars:105 }}</p>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between gap-3 mt-auto">
+                            <strong class="store-price">R$ {{ produto.preco }}</strong>
+                            <span class="store-stock-pill">{{ produto.estoque }} em estoque</span>
+                        </div>
+
+                        <form class="row g-2" method="post" action="{% url 'adicionar_carrinho' produto.id %}" data-add-to-cart-form>
+                            {% csrf_token %}
+                            <div class="col-4">
+                                <input class="form-control store-quantity" type="number" name="quantidade" min="1" max="{{ produto.estoque }}" value="1" aria-label="Quantidade">
+                            </div>
+                            <div class="col-8">
+                                <button class="btn btn-primary w-100" type="submit">Adicionar</button>
+                            </div>
+                        </form>
+                    </div>
+                </article>
+            </div>
         {% endfor %}
     </section>
 {% else %}
-    <section class="table-panel">
-        <div class="empty-state">
+    <section class="card border-0 shadow-sm">
+        <div class="card-body empty-state">
             <h2>Nenhum produto disponivel</h2>
             <p>Volte mais tarde para ver os produtos liberados para compra.</p>
+            <a class="btn btn-outline-secondary" href="{% url 'pedido_listar' %}">Ver meus pedidos</a>
         </div>
     </section>
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.querySelectorAll('[data-add-to-cart-form]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (form.dataset.submitting === 'true') {
+                return;
+            }
+
+            event.preventDefault();
+
+            const card = form.closest('[data-cart-card]');
+            const button = form.querySelector('button[type="submit"]');
+
+            form.dataset.submitting = 'true';
+            card?.classList.add('is-adding-to-cart');
+
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalText = button.textContent;
+                button.textContent = 'Adicionando...';
+            }
+
+            window.setTimeout(() => {
+                form.submit();
+            }, 420);
+        });
+    });
+</script>
 {% endblock %}

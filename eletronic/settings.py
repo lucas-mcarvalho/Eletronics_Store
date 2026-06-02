@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-h1)6(1ld@d&179yh_e!ns42e86ifl3)k=i_dx41ngo41y7vr6=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 
 
 # Application definition
@@ -114,6 +114,9 @@ LOGIN_REDIRECT_URL = 'loja_home'
 
 JWT_COOKIE_NAME = 'access_token'
 JWT_EXP_SECONDS = 60 * 60 * 2
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'Eletronics Store <no-reply@eletronics.local>'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
