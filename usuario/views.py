@@ -1,6 +1,11 @@
+import json
+
 from django.conf import settings
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from .forms import CadastroForm
@@ -58,6 +63,78 @@ class Login(View):
         )
 
         return response
+
+
+def _json_response(data, status=200):
+    response = JsonResponse(data, status=status, safe=not isinstance(data, list))
+    response['Access-Control-Allow-Origin'] = '*'
+    response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    return response
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginApi(View):
+    def options(self, request):
+        return _json_response({})
+
+    def post(self, request):
+        try:
+            dados = json.loads(request.body.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return _json_response({'erro': 'JSON invalido.'}, status=400)
+
+        usuario = dados.get('username') or dados.get('usuario')
+        senha = dados.get('password') or dados.get('senha')
+        user = authenticate(request, username=usuario, password=senha)
+
+        if user is None or not user.is_active:
+            return _json_response({'erro': 'Usuario ou senha invalidos.'}, status=401)
+
+        return _json_response({
+            'id': user.pk,
+            'username': user.get_username(),
+            'email': user.email,
+            'is_staff': user.is_staff,
+            'token': gerar_token(user),
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CadastroApi(View):
+    def options(self, request):
+        return _json_response({})
+
+    def post(self, request):
+        try:
+            dados = json.loads(request.body.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return _json_response({'erro': 'JSON invalido.'}, status=400)
+
+        form = CadastroForm({
+            'username': dados.get('username', ''),
+            'email': dados.get('email', ''),
+            'password1': dados.get('password1', ''),
+            'password2': dados.get('password2', ''),
+        })
+
+        if not form.is_valid():
+            erros = []
+
+            for mensagens in form.errors.values():
+                erros.extend(mensagens)
+
+            return _json_response({'erro': ' '.join(erros)}, status=400)
+
+        user = form.save()
+
+        return _json_response({
+            'id': user.pk,
+            'username': user.get_username(),
+            'email': user.email,
+            'is_staff': user.is_staff,
+            'token': gerar_token(user),
+        }, status=201)
 
 
 class Cadastro(View):

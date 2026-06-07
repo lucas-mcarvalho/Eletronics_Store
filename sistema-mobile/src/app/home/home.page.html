@@ -1,0 +1,60 @@
+<ion-content [fullscreen]="true" class="login-page">
+  <div class="login-background"></div>
+
+  <div class="login-shell">
+    <section class="login-hero">
+      <div class="brand-mark">ES</div>
+      <p class="eyebrow">Bem-vindo de volta</p>
+      <h1>Entre na sua conta</h1>
+      <p class="subtitle">
+        Acesse produtos, estoque e pedidos da Eletronics Store pelo celular.
+      </p>
+    </section>
+
+    <ion-card class="login-card">
+      <ion-card-content>
+        <form (ngSubmit)="autenticarUsuario()" #loginForm="ngForm">
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="username"
+              type="text"
+              label="Usuário"
+              labelPlacement="stacked"
+              placeholder="Digite seu usuário"
+              [(ngModel)]="instancia.username"
+              autocomplete="username"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="password"
+              [type]="mostrarSenha ? 'text' : 'password'"
+              label="Senha"
+              labelPlacement="stacked"
+              placeholder="Digite sua senha"
+              [(ngModel)]="instancia.password"
+              autocomplete="current-password"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-button expand="block" fill="clear" size="small" type="button" (click)="alternarSenha()">
+            {{ mostrarSenha ? 'Ocultar senha' : 'Mostrar senha' }}
+          </ion-button>
+
+          <div class="login-actions">
+            <ion-button expand="block" type="submit" [disabled]="loginForm.invalid">
+              Entrar
+            </ion-button>
+          </div>
+        </form>
+
+        <p class="login-footer">
+          Ainda não tem conta? <a routerLink="/cadastro">Criar conta</a>
+        </p>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

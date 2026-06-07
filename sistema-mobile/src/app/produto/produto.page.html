@@ -1,0 +1,223 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-title>Eletronics Store</ion-title>
+    <ion-buttons slot="end">
+      <ion-button type="button" (click)="sair()">
+        <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="produto-page">
+  <ion-refresher slot="fixed" (ionRefresh)="atualizarLista($event)">
+    <ion-refresher-content pullingIcon="arrow-down" pullingText="Puxe para atualizar"></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="pagina-conteudo">
+    <section class="cabecalho-lista">
+      <p class="eyebrow">{{ usuarioAdmin ? 'Painel admin mobile' : 'Catalogo mobile' }}</p>
+      <h2>{{ usuarioAdmin ? 'Gerenciar loja' : 'Produtos disponiveis' }}</h2>
+      <p *ngIf="!carregandoLista">
+        {{ usuarioAdmin ? 'Cadastre categorias e produtos pelo celular.' : 'Consulte estoque, preco e categoria dos produtos cadastrados no sistema web.' }}
+      </p>
+    </section>
+
+    <ion-segment *ngIf="usuarioAdmin" class="admin-segment" [(ngModel)]="abaAtual">
+      <ion-segment-button value="catalogo">
+        <ion-label>Catalogo</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="categoria">
+        <ion-label>Categoria</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="produto">
+        <ion-label>Produto</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <section *ngIf="usuarioAdmin && abaAtual === 'categoria'" class="admin-card">
+      <h3>Nova categoria</h3>
+
+      <form (ngSubmit)="cadastrarCategoria()" #formCategoria="ngForm" class="admin-form">
+        <ion-item class="campo-admin" lines="none">
+          <ion-input
+            name="nomeCategoria"
+            type="text"
+            label="Nome"
+            labelPlacement="stacked"
+            placeholder="Ex.: Notebooks"
+            [(ngModel)]="novaCategoria.nome"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="campo-admin" lines="none">
+          <ion-textarea
+            name="descricaoCategoria"
+            label="Descricao"
+            labelPlacement="stacked"
+            placeholder="Descricao opcional"
+            [(ngModel)]="novaCategoria.descricao"
+            autoGrow="true"
+          ></ion-textarea>
+        </ion-item>
+
+        <ion-item class="campo-admin" lines="none">
+          <ion-toggle name="categoriaAtiva" [(ngModel)]="novaCategoria.ativo">Categoria ativa</ion-toggle>
+        </ion-item>
+
+        <ion-button expand="block" type="submit" [disabled]="formCategoria.invalid || salvandoCategoria">
+          {{ salvandoCategoria ? 'Salvando...' : 'Cadastrar categoria' }}
+        </ion-button>
+      </form>
+    </section>
+
+    <section *ngIf="usuarioAdmin && abaAtual === 'produto'" class="admin-card">
+      <h3>Novo produto</h3>
+
+      <form (ngSubmit)="cadastrarProduto()" #formProduto="ngForm" class="admin-form">
+        <ion-item class="campo-admin" lines="none">
+          <ion-input
+            name="nomeProduto"
+            type="text"
+            label="Nome"
+            labelPlacement="stacked"
+            placeholder="Ex.: Notebook Dell"
+            [(ngModel)]="novoProduto.nome"
+            required
+          ></ion-input>
+        </ion-item>
+
+        <ion-item class="campo-admin" lines="none">
+          <ion-textarea
+            name="descricaoProduto"
+            label="Descricao"
+            labelPlacement="stacked"
+            placeholder="Detalhes do produto"
+            [(ngModel)]="novoProduto.descricao"
+            autoGrow="true"
+            required
+          ></ion-textarea>
+        </ion-item>
+
+        <ion-item class="campo-admin" lines="none">
+          <ion-select
+            name="categoriaProduto"
+            label="Categoria"
+            labelPlacement="stacked"
+            placeholder="Selecione"
+            [(ngModel)]="novoProduto.categoria"
+            required
+          >
+            <ion-select-option *ngFor="let categoria of categorias" [value]="categoria.id">
+              {{ categoria.nome }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <div class="form-grid">
+          <ion-item class="campo-admin" lines="none">
+            <ion-input
+              name="precoProduto"
+              type="number"
+              label="Preco"
+              labelPlacement="stacked"
+              placeholder="0.00"
+              [(ngModel)]="novoProduto.preco"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="campo-admin" lines="none">
+            <ion-input
+              name="estoqueProduto"
+              type="number"
+              label="Estoque"
+              labelPlacement="stacked"
+              placeholder="0"
+              [(ngModel)]="novoProduto.estoque"
+              required
+            ></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="form-grid">
+          <ion-item class="campo-admin" lines="none">
+            <ion-input
+              name="modeloProduto"
+              type="text"
+              label="Modelo"
+              labelPlacement="stacked"
+              placeholder="Opcional"
+              [(ngModel)]="novoProduto.modelo"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="campo-admin" lines="none">
+            <ion-input
+              name="garantiaProduto"
+              type="number"
+              label="Garantia"
+              labelPlacement="stacked"
+              placeholder="12"
+              [(ngModel)]="novoProduto.garantia_meses"
+            ></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-item class="campo-admin" lines="none">
+          <ion-toggle name="produtoAtivo" [(ngModel)]="novoProduto.ativo">Produto ativo</ion-toggle>
+        </ion-item>
+
+        <ion-button expand="block" type="submit" [disabled]="formProduto.invalid || salvandoProduto || categorias.length === 0">
+          {{ salvandoProduto ? 'Salvando...' : 'Cadastrar produto' }}
+        </ion-button>
+
+        <p *ngIf="categorias.length === 0" class="form-hint">Cadastre uma categoria antes de criar produtos.</p>
+      </form>
+    </section>
+
+    <section *ngIf="abaAtual === 'catalogo'">
+      <ion-searchbar
+        class="busca-produto"
+        placeholder="Buscar por nome, categoria ou SKU"
+        [(ngModel)]="termoBusca"
+        debounce="250"
+      ></ion-searchbar>
+
+      <div *ngIf="carregandoLista" class="estado-vazio">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Carregando produtos...</p>
+      </div>
+
+      <div *ngIf="!carregandoLista && produtosFiltrados.length === 0" class="estado-vazio">
+        <ion-icon name="cube-outline"></ion-icon>
+        <h3>Nenhum produto encontrado</h3>
+        <p>Quando houver produtos cadastrados, eles aparecerao aqui.</p>
+      </div>
+
+      <ion-card class="produto-card" *ngFor="let produto of produtosFiltrados">
+        <img [src]="obterImagem(produto.imagem)" [alt]="produto.nome" />
+
+        <ion-card-header>
+          <div class="produto-topo">
+            <ion-card-subtitle>{{ produto.categoria }}</ion-card-subtitle>
+            <ion-badge color="success">{{ produto.estoque }} un.</ion-badge>
+          </div>
+          <ion-card-title>{{ produto.nome }}</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p>{{ produto.descricao }}</p>
+
+          <div class="produto-meta">
+            <strong>{{ formatarPreco(produto) }}</strong>
+            <span>{{ produto.garantia_meses }} meses de garantia</span>
+          </div>
+
+          <p class="sku">SKU {{ produto.codigo_sku }}</p>
+        </ion-card-content>
+      </ion-card>
+    </section>
+  </div>
+</ion-content>

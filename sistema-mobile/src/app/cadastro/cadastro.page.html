@@ -1,0 +1,86 @@
+<ion-content [fullscreen]="true" class="cadastro-page">
+  <div class="cadastro-background"></div>
+
+  <div class="cadastro-shell">
+    <section class="cadastro-hero">
+      <div class="brand-mark">ES</div>
+      <p class="eyebrow">Nova conta</p>
+      <h1>Crie seu acesso</h1>
+      <p class="subtitle">
+        Cadastre seu usuario para acessar a Eletronics Store pelo aplicativo mobile.
+      </p>
+    </section>
+
+    <ion-card class="cadastro-card">
+      <ion-card-content>
+        <form (ngSubmit)="cadastrarUsuario()" #cadastroForm="ngForm">
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="username"
+              type="text"
+              label="Usuario"
+              labelPlacement="stacked"
+              placeholder="Digite seu usuario"
+              [(ngModel)]="instancia.username"
+              autocomplete="username"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="email"
+              type="email"
+              label="E-mail"
+              labelPlacement="stacked"
+              placeholder="voce@email.com"
+              [(ngModel)]="instancia.email"
+              autocomplete="email"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="password1"
+              [type]="mostrarSenha ? 'text' : 'password'"
+              label="Senha"
+              labelPlacement="stacked"
+              placeholder="Digite sua senha"
+              [(ngModel)]="instancia.password1"
+              autocomplete="new-password"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="password2"
+              [type]="mostrarSenha ? 'text' : 'password'"
+              label="Confirmar senha"
+              labelPlacement="stacked"
+              placeholder="Repita sua senha"
+              [(ngModel)]="instancia.password2"
+              autocomplete="new-password"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-button expand="block" fill="clear" size="small" type="button" (click)="alternarSenha()">
+            {{ mostrarSenha ? 'Ocultar senha' : 'Mostrar senha' }}
+          </ion-button>
+
+          <div class="cadastro-actions">
+            <ion-button expand="block" type="submit" [disabled]="cadastroForm.invalid">
+              Criar conta
+            </ion-button>
+
+            <ion-button expand="block" fill="clear" type="button" routerLink="/home">
+              Voltar para login
+            </ion-button>
+          </div>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

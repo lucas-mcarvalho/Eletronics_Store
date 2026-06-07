@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'category.apps.CategoryConfig',
     'product.apps.ProductConfig',
     'pedido.apps.PedidoConfig',
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -120,3 +122,6 @@ DEFAULT_FROM_EMAIL = 'Eletronics Store <no-reply@eletronics.local>'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Allow CORS during development for the Ionic/Angular mobile app.
+CORS_ALLOW_ALL_ORIGINS = True
