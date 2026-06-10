@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { CapacitorHttp, HttpOptions, HttpResponse } from '@capacitor/core';
+import { HttpResponse } from '@capacitor/core';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, LoadingController, NavController, ToastController } from '@ionic/angular';
 import { Storage } from '@ionic/storage-angular';
 
 import { Usuario } from '../home/usuario.models';
+import { ApiService } from '../services/api.service';
 import { Categoria, Produto } from './produto.model';
 
 @Component({
@@ -26,6 +27,8 @@ export class ProdutoPage implements OnInit {
   public abaAtual: 'catalogo' | 'categoria' | 'produto' = 'catalogo';
   public salvandoCategoria = false;
   public salvandoProduto = false;
+  public finalizandoProdutoId = 0;
+  public formaPagamento = 'pix';
   public novaCategoria: Categoria = new Categoria();
   public novoProduto = {
     nome: '',
@@ -45,6 +48,7 @@ export class ProdutoPage implements OnInit {
     private controleCarregamento: LoadingController,
     private controleToast: ToastController,
     private controleNavegacao: NavController,
+    private api: ApiService,
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -79,7 +83,7 @@ export class ProdutoPage implements OnInit {
     return this.produtos.filter((produto) => {
       return (
         produto.nome.toLowerCase().includes(termo) ||
-        produto.categoria.toLowerCase().includes(termo) ||
+        this.nomeCategoriaProduto(produto).toLowerCase().includes(termo) ||
         produto.codigo_sku.toLowerCase().includes(termo)
       );
     });
@@ -104,15 +108,7 @@ export class ProdutoPage implements OnInit {
 
     await loading.present();
 
-    const options: HttpOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${this.usuario.token}`,
-      },
-      url: 'http://127.0.0.1:8000/produtos/api/listar/',
-    };
-
-    CapacitorHttp.get(options)
+    this.api.get('/produtos/api/listar/', this.usuario)
       .then(async (resposta: HttpResponse) => {
         if (resposta.status === 200 && Array.isArray(resposta.data)) {
           this.produtos = resposta.data.map((produto: any) => Object.assign(new Produto(), produto));
@@ -136,16 +132,8 @@ export class ProdutoPage implements OnInit {
   }
 
   async consultarCategoriasSistemaWeb(): Promise<void> {
-    const options: HttpOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${this.usuario.token}`,
-      },
-      url: 'http://127.0.0.1:8000/categorias/api/listar/',
-    };
-
     try {
-      const resposta = await CapacitorHttp.get(options);
+      const resposta = await this.api.get('/categorias/api/listar/', this.usuario);
 
       if (resposta.status === 200 && Array.isArray(resposta.data)) {
         this.categorias = resposta.data.map((categoria: any) => Object.assign(new Categoria(), categoria));
@@ -168,17 +156,8 @@ export class ProdutoPage implements OnInit {
 
     this.salvandoCategoria = true;
 
-    const options: HttpOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${this.usuario.token}`,
-      },
-      url: 'http://127.0.0.1:8000/categorias/api/nova/',
-      data: this.novaCategoria,
-    };
-
     try {
-      const resposta = await CapacitorHttp.post(options);
+      const resposta = await this.api.post('/categorias/api/nova/', this.novaCategoria, this.usuario);
 
       if (resposta.status === 201) {
         await this.exibirToast('Categoria cadastrada com sucesso!');
@@ -204,17 +183,8 @@ export class ProdutoPage implements OnInit {
 
     this.salvandoProduto = true;
 
-    const options: HttpOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${this.usuario.token}`,
-      },
-      url: 'http://127.0.0.1:8000/produtos/api/novo/',
-      data: this.novoProduto,
-    };
-
     try {
-      const resposta = await CapacitorHttp.post(options);
+      const resposta = await this.api.post('/produtos/api/novo/', this.novoProduto, this.usuario);
 
       if (resposta.status === 201) {
         await this.exibirToast('Produto cadastrado com sucesso!');
@@ -250,7 +220,44 @@ export class ProdutoPage implements OnInit {
       return url;
     }
 
-    return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`;
+    return this.api.url(url);
+  }
+
+  imagemProduto(produto: Produto): string {
+    return this.obterImagem(produto.imagem_url || produto.imagem);
+  }
+
+  nomeCategoriaProduto(produto: Produto): string {
+    return produto.nome_categoria || produto.categoria || '';
+  }
+
+  async comprarProduto(produto: Produto): Promise<void> {
+    this.finalizandoProdutoId = produto.id;
+
+    try {
+      const resposta = await this.api.post('/pedidos/api/finalizar-produto/', {
+        produto_id: produto.id,
+        quantidade: 1,
+        forma_pagamento: this.formaPagamento,
+      }, this.usuario);
+
+      if (resposta.status === 201) {
+        await this.exibirToast('Pedido finalizado e pagamento aprovado!');
+        await this.carregarDados();
+        return;
+      }
+
+      await this.exibirToast(resposta.data?.erro || 'Nao foi possivel finalizar o pedido.');
+    } catch (error) {
+      console.error('Erro ao finalizar pedido:', error);
+      await this.exibirToast('Erro ao finalizar pedido. Verifique o backend.');
+    } finally {
+      this.finalizandoProdutoId = 0;
+    }
+  }
+
+  async abrirPedidos(): Promise<void> {
+    this.controleNavegacao.navigateForward('/pedido');
   }
 
   formatarPreco(produto: Produto): string {

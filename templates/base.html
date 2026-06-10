@@ -11,15 +11,15 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
     {% block header %}
-        {% if request.jwt_user %}
+        {% if request.user.is_authenticated %}
             <header class="topbar">
-                {% if request.jwt_user.is_staff %}
+                {% if request.user.is_staff %}
                     <a class="brand" href="{% url 'admin_home' %}">Eletronics Store</a>
                 {% else %}
                     <a class="brand" href="{% url 'loja_home' %}">Eletronics Store</a>
                 {% endif %}
                 <nav class="nav">
-                    {% if request.jwt_user.is_staff %}
+                    {% if request.user.is_staff %}
                         <a href="{% url 'admin_home' %}">Painel</a>
                         <a href="{% url 'produto_listar' %}">Produtos</a>
                         <a href="{% url 'categoria_listar' %}">Categorias</a>

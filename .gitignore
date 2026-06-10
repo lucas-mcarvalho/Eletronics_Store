@@ -25,6 +25,7 @@ rad.json
 TestResults.xml
 
 ### Python/Django ###
+.env
 __pycache__/
 *.py[cod]
 venv/

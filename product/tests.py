@@ -3,7 +3,6 @@ from django.test import TestCase
 from django.urls import reverse
 
 from category.models import Categoria
-from usuario.jwt import JWT_COOKIE_NAME, gerar_token
 
 from .forms import ProdutoForm
 from .models import Produto
@@ -11,7 +10,7 @@ from .models import Produto
 
 def autenticar(client, usuario):
     client.defaults['HTTP_HOST'] = 'localhost'
-    client.cookies[JWT_COOKIE_NAME] = gerar_token(usuario)
+    client.force_login(usuario)
 
 
 class TestesModelProduto(TestCase):
@@ -142,7 +141,7 @@ class TestesViewCriarProdutos(TestCase):
         self.client.cookies.clear()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('login'))
+        self.assertEqual(response.url, f'{reverse("login")}?next={self.url}')
 
     def test_post(self):
         dados = {

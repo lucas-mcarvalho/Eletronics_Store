@@ -2,6 +2,9 @@
   <ion-toolbar color="primary">
     <ion-title>Eletronics Store</ion-title>
     <ion-buttons slot="end">
+      <ion-button type="button" (click)="abrirPedidos()">
+        <ion-icon slot="icon-only" name="receipt-outline"></ion-icon>
+      </ion-button>
       <ion-button type="button" (click)="sair()">
         <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
       </ion-button>
@@ -185,6 +188,15 @@
         debounce="250"
       ></ion-searchbar>
 
+      <ion-item *ngIf="!usuarioAdmin" class="campo-admin" lines="none">
+        <ion-select name="formaPagamento" label="Pagamento" labelPlacement="stacked" [(ngModel)]="formaPagamento">
+          <ion-select-option value="pix">Pix</ion-select-option>
+          <ion-select-option value="cartao">Cartao</ion-select-option>
+          <ion-select-option value="boleto">Boleto</ion-select-option>
+          <ion-select-option value="dinheiro">Dinheiro</ion-select-option>
+        </ion-select>
+      </ion-item>
+
       <div *ngIf="carregandoLista" class="estado-vazio">
         <ion-spinner name="crescent"></ion-spinner>
         <p>Carregando produtos...</p>
@@ -197,11 +209,11 @@
       </div>
 
       <ion-card class="produto-card" *ngFor="let produto of produtosFiltrados">
-        <img [src]="obterImagem(produto.imagem)" [alt]="produto.nome" />
+        <img [src]="imagemProduto(produto)" [alt]="produto.nome" />
 
         <ion-card-header>
           <div class="produto-topo">
-            <ion-card-subtitle>{{ produto.categoria }}</ion-card-subtitle>
+            <ion-card-subtitle>{{ nomeCategoriaProduto(produto) }}</ion-card-subtitle>
             <ion-badge color="success">{{ produto.estoque }} un.</ion-badge>
           </div>
           <ion-card-title>{{ produto.nome }}</ion-card-title>
@@ -216,6 +228,16 @@
           </div>
 
           <p class="sku">SKU {{ produto.codigo_sku }}</p>
+
+          <ion-button
+            *ngIf="!usuarioAdmin"
+            expand="block"
+            type="button"
+            [disabled]="produto.estoque < 1 || finalizandoProdutoId === produto.id"
+            (click)="comprarProduto(produto)"
+          >
+            {{ finalizandoProdutoId === produto.id ? 'Finalizando...' : 'Comprar agora' }}
+          </ion-button>
         </ion-card-content>
       </ion-card>
     </section>

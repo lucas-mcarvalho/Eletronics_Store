@@ -58,6 +58,16 @@
         </div>
         <form method="post" action="{% url 'finalizar_carrinho' %}">
             {% csrf_token %}
+            <label>
+                <span>Forma de pagamento</span>
+                <select name="forma_pagamento" required>
+                    <option value="">Escolha uma opcao</option>
+                    <option value="pix">Pix</option>
+                    <option value="cartao">Cartao</option>
+                    <option value="boleto">Boleto</option>
+                    <option value="dinheiro">Dinheiro</option>
+                </select>
+            </label>
             <button class="button primary" type="submit">Finalizar pedido</button>
         </form>
     </section>

@@ -1,0 +1,43 @@
+.pedido-page {
+  --background: #f5f7fb;
+}
+
+.pedido-shell {
+  padding: 18px;
+}
+
+.estado-vazio {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: #64748b;
+  text-align: center;
+}
+
+.estado-vazio ion-icon {
+  font-size: 42px;
+}
+
+.pedido-card {
+  margin: 0 0 14px;
+  border-radius: 8px;
+}
+
+.pedido-topo,
+.linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.linha {
+  padding: 8px 0;
+  color: #475569;
+}
+
+.linha strong {
+  color: #111827;
+}

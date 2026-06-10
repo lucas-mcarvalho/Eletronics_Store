@@ -10,7 +10,7 @@
     </div>
     <div class="header-actions">
         <a class="button ghost" href="{% url 'pedido_listar' %}">Voltar</a>
-        {% if request.jwt_user.is_staff %}
+        {% if request.user.is_staff %}
             <a class="button primary" href="{% url 'item_pedido_cadastrar' pedido.id %}">Adicionar item</a>
         {% else %}
             <a class="button primary" href="{% url 'loja_home' %}">Comprar mais</a>
@@ -36,7 +36,7 @@
 <section class="table-panel spaced">
     <div class="panel-title">
         <h2>Itens do pedido</h2>
-        {% if request.jwt_user.is_staff %}
+        {% if request.user.is_staff %}
             <a class="button ghost" href="{% url 'item_pedido_cadastrar' pedido.id %}">Novo item</a>
         {% endif %}
     </div>
@@ -49,7 +49,7 @@
                     <th>Quantidade</th>
                     <th>Preco unitario</th>
                     <th>Subtotal</th>
-                    {% if request.jwt_user.is_staff %}
+                    {% if request.user.is_staff %}
                         <th class="actions">Acoes</th>
                     {% endif %}
                 </tr>
@@ -61,7 +61,7 @@
                         <td>{{ item.quantidade }}</td>
                         <td>R$ {{ item.preco_unitario }}</td>
                         <td>R$ {{ item.subtotal }}</td>
-                        {% if request.jwt_user.is_staff %}
+                        {% if request.user.is_staff %}
                             <td class="actions">
                                 <a class="button ghost" href="{% url 'item_pedido_editar' item.id %}">Editar</a>
                                 <a class="button danger" href="{% url 'item_pedido_excluir' item.id %}">Excluir</a>
@@ -82,12 +82,8 @@
 <section class="table-panel spaced">
     <div class="panel-title">
         <h2>Pagamento</h2>
-        {% if request.jwt_user.is_staff %}
-            {% if pedido.pagamento %}
-                <a class="button ghost" href="{% url 'pagamento_editar' pedido.pagamento.id %}">Editar pagamento</a>
-            {% else %}
-                <a class="button primary" href="{% url 'pagamento_cadastrar' pedido.id %}">Registrar pagamento</a>
-            {% endif %}
+        {% if request.user.is_staff and pedido.pagamento %}
+            <a class="button ghost" href="{% url 'pagamento_editar' pedido.pagamento.id %}">Editar pagamento</a>
         {% endif %}
     </div>
 
@@ -112,17 +108,15 @@
                 </tr>
             </tbody>
         </table>
+
     {% else %}
         <div class="empty-state">
-            {% if pedido.status == 'fechado' %}
-                <h2>Pedido finalizado</h2>
-                <p>Pagamento concluido no fluxo simples, sem metodo de pagamento cadastrado.</p>
-            {% elif pedido.status == 'aberto' %}
+            {% if pedido.status == 'aberto' %}
                 <h2>Pedido aberto</h2>
                 <p>Este pedido ainda esta em aberto.</p>
             {% else %}
-                <h2>Pagamento pendente</h2>
-                <p>{% if request.jwt_user.is_staff %}Registre o pagamento quando o pedido estiver pronto.{% else %}O pagamento ainda nao foi registrado para este pedido.{% endif %}</p>
+                <h2>Pagamento nao registrado</h2>
+                <p>Este pedido ainda nao possui pagamento vinculado.</p>
             {% endif %}
         </div>
     {% endif %}

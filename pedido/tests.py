@@ -1,12 +1,13 @@
+import json
 from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.authtoken.models import Token
 
 from category.models import Categoria
 from product.models import Produto
-from usuario.jwt import JWT_COOKIE_NAME, gerar_token
 
 from .forms import ItemPedidoForm, PagamentoForm, PedidoForm
 from .models import ItemPedido, Pagamento, Pedido
@@ -15,7 +16,7 @@ from .views import obter_quantidade
 
 def autenticar(client, usuario):
     client.defaults['HTTP_HOST'] = 'localhost'
-    client.cookies[JWT_COOKIE_NAME] = gerar_token(usuario)
+    client.force_login(usuario)
 
 
 class BasePedidoTestCase(TestCase):
@@ -204,14 +205,27 @@ class TestesViewFinalizarCarrinho(BasePedidoTestCase):
         self.url = reverse('finalizar_carrinho')
 
     def test_post_finaliza_pedido(self):
-        response = self.client.post(self.url)
+        response = self.client.post(self.url, {'forma_pagamento': Pagamento.FORMA_PIX})
         self.pedido.refresh_from_db()
         self.produto.refresh_from_db()
+        pagamento = Pagamento.objects.get(pedido=self.pedido)
 
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('pedido_detalhar', args=[self.pedido.id]))
         self.assertEqual(self.pedido.status, Pedido.STATUS_FECHADO)
         self.assertEqual(self.produto.estoque, 3)
+        self.assertEqual(pagamento.forma, Pagamento.FORMA_PIX)
+        self.assertEqual(pagamento.status, Pagamento.STATUS_APROVADO)
+        self.assertIsNotNone(pagamento.pago_em)
+
+    def test_post_sem_forma_de_pagamento(self):
+        response = self.client.post(self.url)
+        self.pedido.refresh_from_db()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('carrinho_detalhar'))
+        self.assertEqual(self.pedido.status, Pedido.STATUS_ABERTO)
+        self.assertFalse(Pagamento.objects.filter(pedido=self.pedido).exists())
 
 
 class TestesViewListarPedidos(BasePedidoTestCase):
@@ -231,6 +245,180 @@ class TestesViewListarPedidos(BasePedidoTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context.get('pedidos')), 1)
         self.assertEqual(response.context.get('pedidos')[0], self.pedido_fechado)
+
+
+class TestesApiListarPedidos(BasePedidoTestCase):
+    # Classe de testes para a API de listagem de pedidos
+
+    def setUp(self):
+        super().setUp()
+        self.pedido_fechado = Pedido.objects.create(usuario=self.usuario, status=Pedido.STATUS_FECHADO)
+        ItemPedido.objects.create(
+            pedido=self.pedido_fechado,
+            produto=self.produto,
+            quantidade=2,
+            preco_unitario=Decimal('3500.00'),
+        )
+        Pedido.objects.create(usuario=self.usuario, status=Pedido.STATUS_ABERTO)
+        outro_usuario = User.objects.create_user(username='outro', password='12345@teste')
+        self.pedido_outro_usuario = Pedido.objects.create(usuario=outro_usuario, status=Pedido.STATUS_FECHADO)
+        self.url = reverse('pedido_api_listar')
+        self.token_usuario = Token.objects.create(user=self.usuario)
+        self.token_admin = Token.objects.create(user=self.admin)
+
+    def test_get_sem_token(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json().get('detail'), 'As credenciais de autenticação não foram fornecidas.')
+
+    def test_get_cliente_lista_apenas_pedidos_do_usuario(self):
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f'Token {self.token_usuario.key}',
+        )
+        dados = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(dados), 1)
+        self.assertEqual(dados[0]['id'], self.pedido_fechado.id)
+        self.assertEqual(dados[0]['valor_total'], '7000.00')
+        self.assertEqual(dados[0]['itens'][0]['produto'], self.produto.nome)
+
+    def test_get_admin_lista_todos_os_pedidos(self):
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f'Token {self.token_admin.key}',
+        )
+        ids = [pedido['id'] for pedido in response.json()]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.pedido_fechado.id, ids)
+        self.assertIn(self.pedido_outro_usuario.id, ids)
+
+
+class TestesApiCrudPedidos(BasePedidoTestCase):
+    # Classe de testes para as views de API CRUD de pedidos
+
+    def setUp(self):
+        super().setUp()
+        self.token_usuario = Token.objects.create(user=self.usuario)
+        self.headers = {'HTTP_AUTHORIZATION': f'Token {self.token_usuario.key}'}
+
+    def test_post_cria_pedido_para_usuario_autenticado(self):
+        response = self.client.post(
+            reverse('pedido_api_cadastrar'),
+            data=json.dumps({'status': Pedido.STATUS_ABERTO, 'observacao': 'Pedido API'}),
+            content_type='application/json',
+            **self.headers,
+        )
+        pedido = Pedido.objects.get()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(pedido.usuario, self.usuario)
+        self.assertEqual(pedido.observacao, 'Pedido API')
+
+    def test_put_atualiza_pedido_do_usuario(self):
+        pedido = Pedido.objects.create(usuario=self.usuario, status=Pedido.STATUS_FECHADO)
+        response = self.client.put(
+            reverse('pedido_api_editar', kwargs={'pk': pedido.id}),
+            data=json.dumps({'status': Pedido.STATUS_CANCELADO, 'observacao': 'Cancelado via API'}),
+            content_type='application/json',
+            **self.headers,
+        )
+        pedido.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(pedido.status, Pedido.STATUS_CANCELADO)
+        self.assertEqual(pedido.observacao, 'Cancelado via API')
+
+    def test_delete_remove_pedido_do_usuario(self):
+        pedido = Pedido.objects.create(usuario=self.usuario, status=Pedido.STATUS_FECHADO)
+        response = self.client.delete(
+            reverse('pedido_api_deletar', kwargs={'pk': pedido.id}),
+            **self.headers,
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Pedido.objects.filter(id=pedido.id).exists())
+
+
+class TestesApiPagamentoSimulado(BasePedidoTestCase):
+    # Classe de testes para a API de pagamento simulado
+
+    def setUp(self):
+        super().setUp()
+        self.pedido = Pedido.objects.create(usuario=self.usuario, status=Pedido.STATUS_FECHADO)
+        ItemPedido.objects.create(
+            pedido=self.pedido,
+            produto=self.produto,
+            quantidade=2,
+            preco_unitario=Decimal('3500.00'),
+        )
+        self.token_usuario = Token.objects.create(user=self.usuario)
+        self.headers = {'HTTP_AUTHORIZATION': f'Token {self.token_usuario.key}'}
+        self.url = reverse('pagamento_api_simular', kwargs={'pedido_id': self.pedido.id})
+
+    def test_post_cria_pagamento_pendente(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({'forma': Pagamento.FORMA_PIX}),
+            content_type='application/json',
+            **self.headers,
+        )
+        dados = response.json()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(dados['pedido_id'], self.pedido.id)
+        self.assertEqual(dados['forma'], Pagamento.FORMA_PIX)
+        self.assertEqual(dados['status'], Pagamento.STATUS_PENDENTE)
+        self.assertEqual(dados['valor'], '7000.00')
+        self.assertTrue(dados['codigo_transacao'].startswith('SIM-'))
+
+    def test_get_retorna_pagamento(self):
+        pagamento = Pagamento.objects.create(
+            pedido=self.pedido,
+            forma=Pagamento.FORMA_PIX,
+            status=Pagamento.STATUS_PENDENTE,
+            valor=Decimal('7000.00'),
+            codigo_transacao='SIM-TESTE',
+        )
+
+        response = self.client.get(self.url, **self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['id'], pagamento.id)
+
+    def test_post_nao_paga_pedido_aberto(self):
+        pedido_aberto = Pedido.objects.create(usuario=self.usuario, status=Pedido.STATUS_ABERTO)
+        url = reverse('pagamento_api_simular', kwargs={'pedido_id': pedido_aberto.id})
+
+        response = self.client.post(
+            url,
+            data=json.dumps({'forma': Pagamento.FORMA_PIX}),
+            content_type='application/json',
+            **self.headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json().get('erro'), 'Finalize o carrinho antes de pagar.')
+
+    def test_post_aprova_pagamento(self):
+        pagamento = Pagamento.objects.create(
+            pedido=self.pedido,
+            forma=Pagamento.FORMA_PIX,
+            status=Pagamento.STATUS_PENDENTE,
+            valor=Decimal('7000.00'),
+            codigo_transacao='SIM-TESTE',
+        )
+        url = reverse('pagamento_api_aprovar', kwargs={'pedido_id': self.pedido.id})
+
+        response = self.client.post(url, **self.headers)
+        pagamento.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(pagamento.status, Pagamento.STATUS_APROVADO)
+        self.assertIsNotNone(pagamento.pago_em)
 
 
 class TestesViewDetalharPedido(BasePedidoTestCase):

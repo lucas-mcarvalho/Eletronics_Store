@@ -10,10 +10,30 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def carregar_env(caminho):
+    if not caminho.exists():
+        return
+
+    for linha in caminho.read_text(encoding='utf-8').splitlines():
+        linha = linha.strip()
+
+        if not linha or linha.startswith('#') or '=' not in linha:
+            continue
+
+        chave, valor = linha.split('=', 1)
+        chave = chave.strip()
+        valor = valor.strip().strip('"').strip("'")
+        os.environ.setdefault(chave, valor)
+
+
+carregar_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -37,6 +57,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'category.apps.CategoryConfig',
     'product.apps.ProductConfig',
@@ -114,11 +136,13 @@ STATICFILES_DIRS = [BASE_DIR / 'staticfiles']
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'loja_home'
 
-JWT_COOKIE_NAME = 'access_token'
-JWT_EXP_SECONDS = 60 * 60 * 2
-
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Eletronics Store <no-reply@eletronics.local>'
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST') or os.getenv('MAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT') or os.getenv('MAIL_PORT', '587'))
+EMAIL_USE_TLS = (os.getenv('EMAIL_USE_TLS') or os.getenv('MAIL_USE_TLS', 'true')).lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER') or os.getenv('MAIL_USERNAME', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') or os.getenv('MAIL_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'Eletronics Store <no-reply@eletronics.local>')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

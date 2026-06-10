@@ -1,43 +1,21 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from rest_framework.authtoken.models import Token
 
 from category.models import Categoria
 from pedido.models import Pedido
 from product.models import Produto
 
 from .forms import CadastroForm
-from .jwt import JWT_COOKIE_NAME, buscar_usuario_por_token, gerar_token, validar_token
-
 
 def autenticar(client, usuario):
     client.defaults['HTTP_HOST'] = 'localhost'
-    client.cookies[JWT_COOKIE_NAME] = gerar_token(usuario)
-
-
-class TestesJWT(TestCase):
-    # Classe de testes para as funcoes de JWT
-
-    def setUp(self):
-        self.usuario = User.objects.create_user(username='cliente', password='12345@teste')
-
-    def test_gerar_e_validar_token(self):
-        token = gerar_token(self.usuario)
-        payload = validar_token(token)
-
-        self.assertEqual(payload.get('user_id'), self.usuario.id)
-        self.assertEqual(payload.get('username'), self.usuario.username)
-
-    def test_buscar_usuario_por_token(self):
-        token = gerar_token(self.usuario)
-        usuario = buscar_usuario_por_token(token)
-
-        self.assertEqual(usuario, self.usuario)
-
-    def test_token_invalido(self):
-        self.assertIsNone(validar_token('token.invalido'))
-        self.assertIsNone(buscar_usuario_por_token('token.invalido'))
+    client.force_login(usuario)
 
 
 class TestesFormCadastro(TestCase):
@@ -90,7 +68,6 @@ class TestesViewLogin(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('loja_home'))
-        self.assertIn(JWT_COOKIE_NAME, response.cookies)
 
     def test_post_invalido(self):
         dados = {
@@ -101,6 +78,66 @@ class TestesViewLogin(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context.get('mensagem'), 'Usuario ou senha invalidos.')
+
+
+class TestesLoginApi(TestCase):
+    # Classe de testes para a autenticacao por API REST
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='cliente',
+            first_name='Cliente',
+            email='cliente@example.com',
+            password='12345@teste',
+        )
+        self.url = reverse('autenticacao_api')
+
+    def test_post_valido_retorna_token(self):
+        response = self.client.post(self.url, {
+            'username': 'cliente',
+            'password': '12345@teste',
+        })
+        dados = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(dados['id'], self.usuario.id)
+        self.assertEqual(dados['nome'], 'Cliente')
+        self.assertEqual(dados['email'], 'cliente@example.com')
+        self.assertEqual(dados['token'], Token.objects.get(user=self.usuario).key)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class TestesResetSenhaApi(TestCase):
+    # Classe de testes para a redefinicao simples de senha pela API
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='cliente',
+            email='cliente@example.com',
+            password='12345@teste',
+        )
+
+    def test_post_esqueci_senha_envia_email(self):
+        response = self.client.post(reverse('password_reset_api'), {'email': 'cliente@example.com'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('cliente@example.com', mail.outbox[0].to)
+        self.assertIn('/senha/redefinir/', mail.outbox[0].body)
+
+    def test_post_redefine_senha(self):
+        uid = urlsafe_base64_encode(force_bytes(self.usuario.pk))
+        token = default_token_generator.make_token(self.usuario)
+        response = self.client.post(reverse('password_reset_confirm_api'), {
+            'uid': uid,
+            'token': token,
+            'password': 'NovaSenha123',
+            'password2': 'NovaSenha123',
+        })
+        self.usuario.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.usuario.check_password('NovaSenha123'))
 
 
 class TestesViewCadastro(TestCase):
@@ -128,7 +165,6 @@ class TestesViewCadastro(TestCase):
         self.assertEqual(response.url, reverse('loja_home'))
         self.assertEqual(User.objects.count(), 1)
         self.assertEqual(User.objects.first().email, 'cliente@example.com')
-        self.assertIn(JWT_COOKIE_NAME, response.cookies)
 
 
 class TestesViewAdminHome(TestCase):

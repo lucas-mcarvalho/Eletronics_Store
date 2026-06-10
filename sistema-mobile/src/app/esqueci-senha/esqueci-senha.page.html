@@ -1,0 +1,36 @@
+<ion-content [fullscreen]="true" class="reset-page">
+  <div class="reset-shell">
+    <section class="reset-copy">
+      <div class="brand-mark">ES</div>
+      <p class="eyebrow">Recuperar acesso</p>
+      <h1>Esqueci minha senha</h1>
+      <p>Informe seu e-mail cadastrado para receber o link de redefinicao.</p>
+    </section>
+
+    <ion-card class="reset-card">
+      <ion-card-content>
+        <form (ngSubmit)="enviar()" #resetForm="ngForm">
+          <ion-item class="input-item" lines="none">
+            <ion-input
+              name="email"
+              type="email"
+              label="E-mail"
+              labelPlacement="stacked"
+              placeholder="voce@email.com"
+              [(ngModel)]="email"
+              required
+            ></ion-input>
+          </ion-item>
+
+          <ion-button expand="block" type="submit" [disabled]="resetForm.invalid">
+            Enviar link
+          </ion-button>
+
+          <ion-button expand="block" fill="clear" type="button" routerLink="/home">
+            Voltar para login
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

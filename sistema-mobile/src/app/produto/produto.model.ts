@@ -5,9 +5,11 @@ export class Produto {
   public preco: string;
   public categoria_id: number;
   public categoria: string;
+  public nome_categoria: string;
   public modelo: string;
   public codigo_sku: string;
   public imagem: string;
+  public imagem_url: string;
   public estoque: number;
   public garantia_meses: number;
 
@@ -18,9 +20,11 @@ export class Produto {
     this.preco = '0.00';
     this.categoria_id = 0;
     this.categoria = '';
+    this.nome_categoria = '';
     this.modelo = '';
     this.codigo_sku = '';
     this.imagem = '';
+    this.imagem_url = '';
     this.estoque = 0;
     this.garantia_meses = 0;
   }

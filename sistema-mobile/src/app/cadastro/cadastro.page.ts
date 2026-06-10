@@ -1,9 +1,10 @@
-import { HttpOptions, HttpResponse, CapacitorHttp } from '@capacitor/core';
+import { HttpResponse } from '@capacitor/core';
 import { Component } from '@angular/core';
 import { LoadingController, NavController, ToastController } from '@ionic/angular';
 import { Storage } from '@ionic/storage-angular';
 
 import { Usuario } from '../home/usuario.models';
+import { ApiService } from '../services/api.service';
 
 @Component({
   selector: 'app-cadastro',
@@ -28,6 +29,7 @@ export class CadastroPage {
     private controleToast: ToastController,
     private controleNavegacao: NavController,
     private storage: Storage,
+    private api: ApiService,
   ) {}
 
   private getStorage(): Promise<Storage> {
@@ -54,13 +56,7 @@ export class CadastroPage {
     });
     await loading.present();
 
-    const options: HttpOptions = {
-      headers: { 'Content-Type': 'application/json' },
-      url: 'http://127.0.0.1:8000/cadastro-api/',
-      data: this.instancia,
-    };
-
-    CapacitorHttp.post(options)
+    this.api.post('/cadastro-api/', this.instancia)
       .then(async (resposta: HttpResponse) => {
         if (resposta.status === 201) {
           const usuario: Usuario = Object.assign(new Usuario(), resposta.data);

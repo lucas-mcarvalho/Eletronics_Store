@@ -1,8 +1,9 @@
-import { HttpResponse, HttpOptions, CapacitorHttp } from '@capacitor/core';
+import { HttpResponse } from '@capacitor/core';
 import { Component } from '@angular/core';
-  import { LoadingController, ToastController, NavController } from '@ionic/angular';
+import { LoadingController, ToastController, NavController } from '@ionic/angular';
 import { Storage } from '@ionic/storage-angular'
 import { Usuario } from './usuario.models';
+import { ApiService } from '../services/api.service';
 
 @Component({
   selector: 'app-home',
@@ -25,7 +26,8 @@ export class HomePage {
     public controleCarregamento: LoadingController,
     public controleToast: ToastController,
     private storage: Storage,
-    public controleNavegacao: NavController
+    public controleNavegacao: NavController,
+    private api: ApiService,
   ) {}
 
   private getStorage(): Promise<Storage> {
@@ -60,14 +62,8 @@ export class HomePage {
     await loading.present();
 
     // Define informações do cabeçalho da requisição
-    const options: HttpOptions = {
-      headers: {'Content-Type': 'application/json'},
-      url: 'http://127.0.0.1:8000/login-api/',
-      data: this.instancia
-    };
-
     // Autentica usuário junto a API do sistema web
-    CapacitorHttp.post(options)
+    this.api.post('/autenticacao-api/', this.instancia)
       .then(async (resposta: HttpResponse) => {
         // Verifica se a requisição foi processada com sucesso
         if(resposta.status === 200) {

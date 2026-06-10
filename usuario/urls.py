@@ -2,12 +2,15 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.urls import reverse_lazy
 
-from .views import AdminHome, Cadastro, CadastroApi, Login, LoginApi, Logout
+from .views import AdminHome, Cadastro, CadastroApi, EsqueciSenhaApi, Login, LoginApi, Logout, RedefinirSenhaApi
 
 urlpatterns = [
     path('', Login.as_view(), name='login'),
+    path('autenticacao-api/', LoginApi.as_view(), name='autenticacao_api'),
     path('login-api/', LoginApi.as_view(), name='login_api'),
     path('cadastro-api/', CadastroApi.as_view(), name='cadastro_api'),
+    path('senha/esqueci-api/', EsqueciSenhaApi.as_view(), name='password_reset_api'),
+    path('senha/redefinir-api/', RedefinirSenhaApi.as_view(), name='password_reset_confirm_api'),
     path('cadastro/', Cadastro.as_view(), name='cadastro'),
     path(
         'senha/esqueci/',

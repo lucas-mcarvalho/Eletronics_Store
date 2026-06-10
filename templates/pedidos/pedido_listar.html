@@ -8,7 +8,7 @@
         <p class="eyebrow">Vendas</p>
         <h1>Pedidos</h1>
     </div>
-    {% if request.jwt_user.is_staff %}
+    {% if request.user.is_staff %}
         <a class="button primary" href="{% url 'pedido_cadastrar' %}">Novo pedido</a>
     {% else %}
         <a class="button primary" href="{% url 'loja_home' %}">Comprar produtos</a>
@@ -38,7 +38,7 @@
                         <td>{{ pedido.criado_em|date:'d/m/Y H:i' }}</td>
                         <td class="actions">
                             <a class="button ghost" href="{% url 'pedido_detalhar' pedido.id %}">Abrir</a>
-                            {% if request.jwt_user.is_staff %}
+                            {% if request.user.is_staff %}
                                 <a class="button ghost" href="{% url 'pedido_editar' pedido.id %}">Editar</a>
                                 <a class="button danger" href="{% url 'pedido_excluir' pedido.id %}">Excluir</a>
                             {% endif %}
@@ -50,8 +50,8 @@
     {% else %}
         <div class="empty-state">
             <h2>Nenhum pedido cadastrado</h2>
-            <p>{% if request.jwt_user.is_staff %}Crie um pedido, adicione itens e depois registre o pagamento.{% else %}Compre um produto para gerar seu primeiro pedido.{% endif %}</p>
-            {% if request.jwt_user.is_staff %}
+            <p>{% if request.user.is_staff %}Crie um pedido, adicione itens e depois registre o pagamento.{% else %}Compre um produto para gerar seu primeiro pedido.{% endif %}</p>
+            {% if request.user.is_staff %}
                 <a class="button primary" href="{% url 'pedido_cadastrar' %}">Criar pedido</a>
             {% else %}
                 <a class="button primary" href="{% url 'loja_home' %}">Ir para loja</a>

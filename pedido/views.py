@@ -1,25 +1,44 @@
+import uuid
+
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.generics import CreateAPIView, DestroyAPIView, ListAPIView, RetrieveUpdateAPIView
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 
 from product.models import Produto
-from usuario.mixins import AdminRequiredMixin, JWTLoginRequiredMixin
 
 from .forms import ItemPedidoForm, PagamentoForm, PedidoForm
 from .models import ItemPedido, Pagamento, Pedido
+from .serializers import SerializadorPedido
 
 
-class PedidoQuerysetMixin:
-    def get_queryset(self):
-        queryset = Pedido.objects.select_related('usuario').prefetch_related('itens__produto')
+def filtrar_pedidos_para_usuario(queryset, usuario):
+    if usuario.is_staff:
+        return queryset
 
-        if self.request.jwt_user.is_staff:
-            return queryset
+    return queryset.filter(usuario=usuario).exclude(status=Pedido.STATUS_ABERTO)
 
-        return queryset.filter(usuario=self.request.jwt_user).exclude(status=Pedido.STATUS_ABERTO)
+
+def obter_pedido_api(usuario, pedido_id):
+    pedidos = Pedido.objects.select_related('usuario', 'pagamento').prefetch_related('itens__produto')
+
+    if not usuario.is_staff:
+        pedidos = pedidos.filter(usuario=usuario)
+
+    try:
+        return pedidos.get(pk=pedido_id)
+    except Pedido.DoesNotExist:
+        return None
 
 
 def obter_carrinho(usuario):
@@ -52,19 +71,51 @@ def obter_quantidade(request):
     return quantidade
 
 
-class CarrinhoDetalhar(JWTLoginRequiredMixin, View):
+def criar_pagamento_simulado(pedido, forma):
+    return Pagamento.objects.get_or_create(
+        pedido=pedido,
+        defaults={
+            'forma': forma,
+            'status': Pagamento.STATUS_PENDENTE,
+            'valor': pedido.valor_total,
+            'codigo_transacao': f'SIM-{uuid.uuid4().hex[:12].upper()}',
+        },
+    )
+
+
+def atualizar_status_pagamento(pagamento, status):
+    pagamento.status = status
+    pagamento.pago_em = timezone.now() if status == Pagamento.STATUS_APROVADO else None
+    pagamento.save()
+
+
+def serializar_pagamento(pagamento):
+    return {
+        'id': pagamento.pk,
+        'pedido_id': pagamento.pedido_id,
+        'forma': pagamento.forma,
+        'status': pagamento.status,
+        'valor': str(pagamento.valor),
+        'codigo_transacao': pagamento.codigo_transacao or '',
+        'pago_em': pagamento.pago_em.isoformat() if pagamento.pago_em else None,
+        'criado_em': pagamento.criado_em.isoformat(),
+        'atualizado_em': pagamento.atualizado_em.isoformat(),
+    }
+
+
+class CarrinhoDetalhar(LoginRequiredMixin, View):
     template_name = 'carrinho/detalhar.html'
 
     def get(self, request):
-        carrinho = obter_carrinho(request.jwt_user)
+        carrinho = obter_carrinho(request.user)
         return render(request, self.template_name, {'carrinho': carrinho})
 
 
-class AdicionarCarrinho(JWTLoginRequiredMixin, View):
+class AdicionarCarrinho(LoginRequiredMixin, View):
     def post(self, request, produto_id):
         produto = get_object_or_404(Produto, id=produto_id, ativo=True, estoque__gt=0)
         quantidade = obter_quantidade(request)
-        carrinho = obter_ou_criar_carrinho(request.jwt_user)
+        carrinho = obter_ou_criar_carrinho(request.user)
 
         item, _ = ItemPedido.objects.get_or_create(
             pedido=carrinho,
@@ -82,12 +133,12 @@ class AdicionarCarrinho(JWTLoginRequiredMixin, View):
         return redirect('carrinho_detalhar')
 
 
-class AtualizarItemCarrinho(JWTLoginRequiredMixin, View):
+class AtualizarItemCarrinho(LoginRequiredMixin, View):
     def post(self, request, item_id):
         item = get_object_or_404(
             ItemPedido.objects.select_related('pedido', 'produto'),
             id=item_id,
-            pedido__usuario=request.jwt_user,
+            pedido__usuario=request.user,
             pedido__status=Pedido.STATUS_ABERTO,
         )
         quantidade = obter_quantidade(request)
@@ -108,12 +159,12 @@ class AtualizarItemCarrinho(JWTLoginRequiredMixin, View):
         return redirect('carrinho_detalhar')
 
 
-class RemoverItemCarrinho(JWTLoginRequiredMixin, View):
+class RemoverItemCarrinho(LoginRequiredMixin, View):
     def post(self, request, item_id):
         item = get_object_or_404(
             ItemPedido,
             id=item_id,
-            pedido__usuario=request.jwt_user,
+            pedido__usuario=request.user,
             pedido__status=Pedido.STATUS_ABERTO,
         )
         item.delete()
@@ -122,12 +173,18 @@ class RemoverItemCarrinho(JWTLoginRequiredMixin, View):
         return redirect('carrinho_detalhar')
 
 
-class FinalizarCarrinho(JWTLoginRequiredMixin, View):
+class FinalizarCarrinho(LoginRequiredMixin, View):
     def post(self, request):
-        carrinho = obter_carrinho(request.jwt_user)
+        carrinho = obter_carrinho(request.user)
+        forma_pagamento = request.POST.get('forma_pagamento')
+        formas_validas = [opcao[0] for opcao in Pagamento.FORMA_CHOICES]
 
         if not carrinho or not carrinho.itens.exists():
             messages.error(request, 'Seu carrinho esta vazio.')
+            return redirect('carrinho_detalhar')
+
+        if forma_pagamento not in formas_validas:
+            messages.error(request, 'Escolha uma forma de pagamento valida.')
             return redirect('carrinho_detalhar')
 
         with transaction.atomic():
@@ -160,104 +217,306 @@ class FinalizarCarrinho(JWTLoginRequiredMixin, View):
                 produto.save()
 
             carrinho.status = Pedido.STATUS_FECHADO
-            carrinho.observacao = 'Pedido finalizado sem metodo de pagamento.'
+            carrinho.observacao = 'Pedido finalizado com pagamento simulado aprovado.'
             carrinho.save()
+            pagamento, _ = criar_pagamento_simulado(carrinho, forma_pagamento)
+            atualizar_status_pagamento(pagamento, Pagamento.STATUS_APROVADO)
 
-        messages.success(request, 'Pedido finalizado com sucesso.')
+        messages.success(request, 'Pedido finalizado e pagamento aprovado com sucesso.')
         return redirect(reverse('pedido_detalhar', args=[carrinho.id]))
 
 
-class PedidoListar(JWTLoginRequiredMixin, PedidoQuerysetMixin, ListView):
+class PedidoListar(LoginRequiredMixin, ListView):
     model = Pedido
     context_object_name = 'pedidos'
     template_name = 'pedidos/pedido_listar.html'
 
+    def get_queryset(self):
+        queryset = Pedido.objects.select_related('usuario').prefetch_related('itens__produto')
+        return filtrar_pedidos_para_usuario(queryset, self.request.user)
 
-class PedidoDetalhar(JWTLoginRequiredMixin, PedidoQuerysetMixin, DetailView):
+
+class PedidoApiListar(ListAPIView):
+    serializer_class = SerializadorPedido
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        pedidos = (
+            Pedido.objects.select_related('usuario', 'pagamento')
+            .prefetch_related('itens__produto')
+            .order_by('-criado_em')
+        )
+
+        if self.request.user.is_staff:
+            return pedidos
+
+        return pedidos.filter(usuario=self.request.user).exclude(status=Pedido.STATUS_ABERTO)
+
+
+class PedidoApiCadastrar(CreateAPIView):
+    serializer_class = SerializadorPedido
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = Pedido.objects.select_related('usuario', 'pagamento').prefetch_related('itens__produto')
+
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+
+
+class PedidoApiDetalharAtualizar(RetrieveUpdateAPIView):
+    serializer_class = SerializadorPedido
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        pedidos = Pedido.objects.select_related('usuario', 'pagamento').prefetch_related('itens__produto')
+        return filtrar_pedidos_para_usuario(pedidos, self.request.user)
+
+
+class PedidoApiDeletar(DestroyAPIView):
+    serializer_class = SerializadorPedido
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        pedidos = Pedido.objects.select_related('usuario', 'pagamento').prefetch_related('itens__produto')
+        return filtrar_pedidos_para_usuario(pedidos, self.request.user)
+
+
+class PedidoApiFinalizarProduto(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        produto_id = request.data.get('produto_id')
+        forma_pagamento = request.data.get('forma_pagamento')
+        formas_validas = [opcao[0] for opcao in Pagamento.FORMA_CHOICES]
+
+        try:
+            quantidade = int(request.data.get('quantidade') or 1)
+        except (TypeError, ValueError):
+            quantidade = 1
+
+        if quantidade < 1:
+            quantidade = 1
+
+        if forma_pagamento not in formas_validas:
+            return Response({'erro': 'Forma de pagamento invalida.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            produto = get_object_or_404(
+                Produto.objects.select_for_update(),
+                id=produto_id,
+                ativo=True,
+                estoque__gt=0,
+            )
+
+            if quantidade > produto.estoque:
+                return Response({'erro': 'Quantidade maior que o estoque disponivel.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            pedido = Pedido.objects.create(
+                usuario=request.user,
+                status=Pedido.STATUS_FECHADO,
+                observacao='Pedido mobile com pagamento simulado aprovado.',
+            )
+            ItemPedido.objects.create(
+                pedido=pedido,
+                produto=produto,
+                quantidade=quantidade,
+                preco_unitario=produto.preco,
+            )
+            produto.estoque -= quantidade
+            produto.save()
+            pagamento, _ = criar_pagamento_simulado(pedido, forma_pagamento)
+            atualizar_status_pagamento(pagamento, Pagamento.STATUS_APROVADO)
+
+        pedido = Pedido.objects.select_related('usuario', 'pagamento').prefetch_related('itens__produto').get(id=pedido.id)
+        return Response(SerializadorPedido(pedido).data, status=status.HTTP_201_CREATED)
+
+
+class PagamentoApiSimular(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pedido_id):
+        pedido = obter_pedido_api(request.user, pedido_id)
+
+        if pedido is None:
+            return Response({'erro': 'Pedido nao encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pagamento = getattr(pedido, 'pagamento', None)
+
+        if pagamento is None:
+            return Response({'erro': 'Pagamento nao encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(serializar_pagamento(pagamento))
+
+    def post(self, request, pedido_id):
+        pedido = obter_pedido_api(request.user, pedido_id)
+
+        if pedido is None:
+            return Response({'erro': 'Pedido nao encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if pedido.status == Pedido.STATUS_ABERTO:
+            return Response({'erro': 'Finalize o carrinho antes de pagar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        forma = request.data.get('forma')
+        formas_validas = [opcao[0] for opcao in Pagamento.FORMA_CHOICES]
+
+        if forma not in formas_validas:
+            return Response({
+                'erro': 'Forma de pagamento invalida.',
+                'formas_validas': formas_validas,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        pagamento, criado = criar_pagamento_simulado(pedido, forma)
+
+        if not criado:
+            return Response({
+                'mensagem': 'Este pedido ja possui pagamento.',
+                'pagamento': serializar_pagamento(pagamento),
+            })
+
+        return Response(serializar_pagamento(pagamento), status=status.HTTP_201_CREATED)
+
+
+class PagamentoApiAtualizarStatus(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    novo_status = None
+
+    def post(self, request, pedido_id):
+        pedido = obter_pedido_api(request.user, pedido_id)
+
+        if pedido is None:
+            return Response({'erro': 'Pedido nao encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pagamento = getattr(pedido, 'pagamento', None)
+
+        if pagamento is None:
+            return Response({'erro': 'Pagamento nao encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        atualizar_status_pagamento(pagamento, self.novo_status)
+
+        return Response(serializar_pagamento(pagamento))
+
+
+class PagamentoApiAprovar(PagamentoApiAtualizarStatus):
+    novo_status = Pagamento.STATUS_APROVADO
+
+
+class PagamentoApiRecusar(PagamentoApiAtualizarStatus):
+    novo_status = Pagamento.STATUS_RECUSADO
+
+
+class PagamentoApiCancelar(PagamentoApiAtualizarStatus):
+    novo_status = Pagamento.STATUS_CANCELADO
+
+
+class PedidoDetalhar(LoginRequiredMixin, DetailView):
     model = Pedido
     context_object_name = 'pedido'
     template_name = 'pedidos/pedido_detalhar.html'
     pk_url_kwarg = 'id'
 
+    def get_queryset(self):
+        queryset = Pedido.objects.select_related('usuario').prefetch_related('itens__produto')
+        return filtrar_pedidos_para_usuario(queryset, self.request.user)
 
-class PedidoCadastrar(AdminRequiredMixin, CreateView):
+
+class PedidoCadastrar(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Pedido
     form_class = PedidoForm
     template_name = 'pedidos/pedido_form.html'
     success_url = reverse_lazy('pedido_listar')
 
+    def test_func(self):
+        return self.request.user.is_staff
+
     def form_valid(self, form):
-        form.instance.usuario = self.request.jwt_user
+        form.instance.usuario = self.request.user
         return super().form_valid(form)
 
 
-class PedidoEditar(AdminRequiredMixin, PedidoQuerysetMixin, UpdateView):
+class PedidoEditar(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Pedido
     form_class = PedidoForm
     template_name = 'pedidos/pedido_form.html'
     success_url = reverse_lazy('pedido_listar')
     pk_url_kwarg = 'id'
 
+    def test_func(self):
+        return self.request.user.is_staff
 
-class PedidoExcluir(AdminRequiredMixin, PedidoQuerysetMixin, DeleteView):
+    def get_queryset(self):
+        queryset = Pedido.objects.select_related('usuario').prefetch_related('itens__produto')
+        return filtrar_pedidos_para_usuario(queryset, self.request.user)
+
+
+class PedidoExcluir(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Pedido
     template_name = 'pedidos/pedido_confirm_delete.html'
     success_url = reverse_lazy('pedido_listar')
     pk_url_kwarg = 'id'
 
+    def test_func(self):
+        return self.request.user.is_staff
 
-class ItemPedidoCadastrar(AdminRequiredMixin, CreateView):
+    def get_queryset(self):
+        queryset = Pedido.objects.select_related('usuario').prefetch_related('itens__produto')
+        return filtrar_pedidos_para_usuario(queryset, self.request.user)
+
+
+class ItemPedidoCadastrar(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = ItemPedido
     form_class = ItemPedidoForm
     template_name = 'pedidos/item_pedido_form.html'
 
-    def dispatch(self, request, *args, **kwargs):
-        usuario = self.get_jwt_user(request)
-
-        if usuario is None:
-            return redirect(self.login_url)
-
-        if not usuario.is_staff:
-            return redirect('loja_home')
-
-        request.jwt_user = usuario
-        self.pedido = self.get_pedido()
-        return super().dispatch(request, *args, **kwargs)
+    def test_func(self):
+        return self.request.user.is_staff
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        contexto['pedido'] = self.pedido
+        contexto['pedido'] = self.get_pedido()
         return contexto
 
     def form_valid(self, form):
-        form.instance.pedido = self.pedido
+        form.instance.pedido = self.get_pedido()
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse('pedido_detalhar', args=[self.pedido.id])
+        return reverse('pedido_detalhar', args=[self.get_pedido().id])
 
     def get_pedido(self):
+        if hasattr(self, 'pedido'):
+            return self.pedido
+
         queryset = Pedido.objects.all()
 
-        if not self.request.jwt_user.is_staff:
-            queryset = queryset.filter(usuario=self.request.jwt_user)
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(usuario=self.request.user)
 
-        return get_object_or_404(queryset, id=self.kwargs['pedido_id'])
+        self.pedido = get_object_or_404(queryset, id=self.kwargs['pedido_id'])
+        return self.pedido
 
 
-class ItemPedidoEditar(AdminRequiredMixin, UpdateView):
+class ItemPedidoEditar(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = ItemPedido
     form_class = ItemPedidoForm
     template_name = 'pedidos/item_pedido_form.html'
     pk_url_kwarg = 'item_id'
 
+    def test_func(self):
+        return self.request.user.is_staff
+
     def get_queryset(self):
         queryset = ItemPedido.objects.select_related('pedido', 'produto')
 
-        if self.request.jwt_user.is_staff:
+        if self.request.user.is_staff:
             return queryset
 
-        return queryset.filter(pedido__usuario=self.request.jwt_user)
+        return queryset.filter(pedido__usuario=self.request.user)
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
@@ -268,79 +527,84 @@ class ItemPedidoEditar(AdminRequiredMixin, UpdateView):
         return reverse('pedido_detalhar', args=[self.object.pedido_id])
 
 
-class ItemPedidoExcluir(AdminRequiredMixin, DeleteView):
+class ItemPedidoExcluir(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = ItemPedido
     template_name = 'pedidos/item_pedido_confirm_delete.html'
     pk_url_kwarg = 'item_id'
 
+    def test_func(self):
+        return self.request.user.is_staff
+
     def get_queryset(self):
         queryset = ItemPedido.objects.select_related('pedido', 'produto')
 
-        if self.request.jwt_user.is_staff:
+        if self.request.user.is_staff:
             return queryset
 
-        return queryset.filter(pedido__usuario=self.request.jwt_user)
+        return queryset.filter(pedido__usuario=self.request.user)
 
     def get_success_url(self):
         return reverse('pedido_detalhar', args=[self.object.pedido_id])
 
 
-class PagamentoCadastrar(AdminRequiredMixin, CreateView):
+class PagamentoCadastrar(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Pagamento
     form_class = PagamentoForm
     template_name = 'pedidos/pagamento_form.html'
 
+    def test_func(self):
+        return self.request.user.is_staff
+
     def dispatch(self, request, *args, **kwargs):
-        usuario = self.get_jwt_user(request)
+        if request.user.is_authenticated and self.test_func():
+            pedido = self.get_pedido()
 
-        if usuario is None:
-            return redirect(self.login_url)
-
-        if not usuario.is_staff:
-            return redirect('loja_home')
-
-        request.jwt_user = usuario
-        self.pedido = self.get_pedido()
-
-        if hasattr(self.pedido, 'pagamento'):
-            return redirect('pagamento_editar', pagamento_id=self.pedido.pagamento.id)
+            if hasattr(pedido, 'pagamento'):
+                return redirect('pagamento_editar', pagamento_id=pedido.pagamento.id)
 
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        contexto['pedido'] = self.pedido
+        contexto['pedido'] = self.get_pedido()
         return contexto
 
     def form_valid(self, form):
-        form.instance.pedido = self.pedido
+        form.instance.pedido = self.get_pedido()
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse('pedido_detalhar', args=[self.pedido.id])
+        return reverse('pedido_detalhar', args=[self.get_pedido().id])
 
     def get_pedido(self):
+        if hasattr(self, 'pedido'):
+            return self.pedido
+
         queryset = Pedido.objects.all()
 
-        if not self.request.jwt_user.is_staff:
-            queryset = queryset.filter(usuario=self.request.jwt_user)
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(usuario=self.request.user)
 
-        return get_object_or_404(queryset, id=self.kwargs['pedido_id'])
+        self.pedido = get_object_or_404(queryset, id=self.kwargs['pedido_id'])
+        return self.pedido
 
 
-class PagamentoEditar(AdminRequiredMixin, UpdateView):
+class PagamentoEditar(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Pagamento
     form_class = PagamentoForm
     template_name = 'pedidos/pagamento_form.html'
     pk_url_kwarg = 'pagamento_id'
 
+    def test_func(self):
+        return self.request.user.is_staff
+
     def get_queryset(self):
         queryset = Pagamento.objects.select_related('pedido')
 
-        if self.request.jwt_user.is_staff:
+        if self.request.user.is_staff:
             return queryset
 
-        return queryset.filter(pedido__usuario=self.request.jwt_user)
+        return queryset.filter(pedido__usuario=self.request.user)
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)

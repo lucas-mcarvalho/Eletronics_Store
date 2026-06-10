@@ -1,0 +1,55 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-button type="button" (click)="voltar()">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Meus pedidos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="pedido-page">
+  <ion-refresher slot="fixed" (ionRefresh)="carregarPedidos($event)">
+    <ion-refresher-content pullingIcon="arrow-down" pullingText="Puxe para atualizar"></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="pedido-shell">
+    <div *ngIf="!carregando && pedidos.length === 0" class="estado-vazio">
+      <ion-icon name="receipt-outline"></ion-icon>
+      <h2>Nenhum pedido ainda</h2>
+      <p>Quando voce comprar pelo catalogo, o pedido aprovado aparecera aqui.</p>
+    </div>
+
+    <ion-card *ngFor="let pedido of pedidos" class="pedido-card">
+      <ion-card-header>
+        <div class="pedido-topo">
+          <ion-card-title>Pedido #{{ pedido.id }}</ion-card-title>
+          <ion-badge color="success">{{ pedido.pagamento?.nome_status || pedido.status }}</ion-badge>
+        </div>
+        <ion-card-subtitle>{{ pedido.criado_em | date:'dd/MM/yyyy HH:mm' }}</ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <div class="linha">
+          <span>Total</span>
+          <strong>{{ formatarValor(pedido.valor_total) }}</strong>
+        </div>
+
+        <div class="linha">
+          <span>Pagamento</span>
+          <strong>{{ pedido.pagamento?.nome_forma || '-' }}</strong>
+        </div>
+
+        <ion-list lines="none">
+          <ion-item *ngFor="let item of pedido.itens">
+            <ion-label>
+              <h3>{{ item.nome_produto || item.produto }}</h3>
+              <p>{{ item.quantidade }} un. - {{ formatarValor(item.subtotal) }}</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
