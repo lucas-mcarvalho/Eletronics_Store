@@ -1,135 +1,137 @@
 .login-page {
-	--background: transparent;
+	--background: var(--app-bg);
 }
 
 .login-background {
-	position: absolute;
-	inset: 0;
-	background:
-		radial-gradient(circle at top left, rgba(255, 183, 77, 0.28), transparent 35%),
-		radial-gradient(circle at bottom right, rgba(52, 152, 219, 0.22), transparent 32%),
-		linear-gradient(160deg, #0f172a 0%, #111827 48%, #1f2937 100%);
+	display: none;
 }
 
 .login-shell {
 	position: relative;
 	z-index: 1;
 	min-height: 100%;
-	display: flex;
-	flex-direction: column;
+	display: grid;
 	justify-content: center;
-	gap: 1.5rem;
-	padding: 2rem 1.25rem;
+	align-content: center;
+	gap: 0;
+	width: min(100%, 920px);
+	margin: 0 auto;
+	padding: 24px;
 }
 
 .login-hero {
-	color: #f8fafc;
+	padding: 28px;
+	border: 1px solid var(--app-line);
+	border-bottom: 0;
+	border-radius: 8px 8px 0 0;
+	background: var(--app-surface-soft);
+	color: var(--app-text);
 }
 
 .brand-mark {
-	width: 3.5rem;
-	height: 3.5rem;
-	border-radius: 1rem;
 	display: grid;
 	place-items: center;
-	margin-bottom: 1rem;
-	background: linear-gradient(135deg, #f97316, #fb7185);
-	color: #fff;
-	font-size: 1.5rem;
-	font-weight: 700;
-	box-shadow: 0 20px 40px rgba(249, 115, 22, 0.25);
+	width: 52px;
+	height: 52px;
+	margin-bottom: 18px;
+	border-radius: 8px;
+	background: var(--app-primary);
+	color: #ffffff;
+	font-size: 1.25rem;
+	font-weight: 900;
 }
 
 .eyebrow {
-	margin: 0 0 0.35rem;
+	margin: 0 0 8px;
 	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	font-size: 0.75rem;
-	color: rgba(226, 232, 240, 0.8);
+	letter-spacing: 0;
+	font-size: 0.78rem;
+	font-weight: 800;
+	color: var(--app-primary);
 }
 
 .login-hero h1 {
 	margin: 0;
-	font-size: clamp(2rem, 5vw, 2.8rem);
-	line-height: 1;
+	font-size: 2.35rem;
+	line-height: 1.08;
 }
 
 .subtitle {
 	margin: 0.75rem 0 0;
 	max-width: 34rem;
-	color: rgba(226, 232, 240, 0.82);
-	line-height: 1.5;
+	color: var(--app-muted);
+	line-height: 1.6;
 }
 
 .login-card {
 	margin: 0;
-	border-radius: 1.5rem;
-	background: rgba(255, 255, 255, 0.96);
-	backdrop-filter: blur(18px);
-	box-shadow: 0 24px 60px rgba(15, 23, 42, 0.32);
+	border-radius: 0 0 8px 8px;
+	background: var(--app-surface);
+	box-shadow: var(--app-shadow);
+}
+
+.login-card ion-card-content {
+	padding: 28px;
 }
 
 .input-item {
-	--background: #f8fafc;
-	--border-radius: 1rem;
-	--padding-start: 0.9rem;
-	--inner-padding-end: 0.9rem;
-	--color: #0f172a;
-	--placeholder-color: #64748b;
-	--highlight-color-focused: #f97316;
-	margin-bottom: 1rem;
-}
+	--background: #ffffff;
+	--border-radius: 8px;
+	--padding-start: 12px;
+	--inner-padding-end: 12px;
+	--color: var(--app-text);
+	--placeholder-color: var(--app-muted);
+	--highlight-color-focused: var(--app-primary);
 
-.input-item ion-input {
-	--color: #0f172a;
-	--placeholder-color: #64748b;
-	color: #0f172a;
-}
-
-.input-item ion-input::part(label) {
-	color: #334155;
-	font-weight: 600;
-}
-
-.input-item ion-input::part(native) {
-	color: #0f172a;
-}
-
-.input-item ion-input::part(placeholder) {
-	color: #64748b;
+	margin-bottom: 14px;
+	border: 1px solid var(--app-line);
+	border-radius: 8px;
 }
 
 .login-actions {
 	display: grid;
-	gap: 0.75rem;
+	gap: 10px;
 	margin-top: 1rem;
 }
 
 .login-footer {
 	margin: 1.25rem 0 0;
 	text-align: center;
-	color: #475569;
-}
-
-.login-footer a {
-	color: #f97316;
-	font-weight: 600;
-	text-decoration: none;
+	color: var(--app-muted);
 }
 
 @media (min-width: 768px) {
 	.login-shell {
-		max-width: 1100px;
-		margin: 0 auto;
 		display: grid;
-		grid-template-columns: 1.1fr 0.9fr;
-		align-items: center;
-		gap: 2.5rem;
+		grid-template-columns: 1fr 380px;
+		align-content: center;
+		align-items: stretch;
+		gap: 0;
 		padding: 3rem;
+	}
+
+	.login-hero {
+		display: flex;
+		min-height: 430px;
+		flex-direction: column;
+		justify-content: center;
+		padding: 40px;
+		border-right: 0;
+		border-bottom: 1px solid var(--app-line);
+		border-radius: 8px 0 0 8px;
 	}
 
 	.login-card {
 		width: min(100%, 28rem);
-		justify-self: end;
+		justify-self: start;
+		border-left: 0;
+		border-radius: 0 8px 8px 0;
+	}
+
+	.login-card ion-card-content {
+		display: grid;
+		height: 100%;
+		align-content: center;
+		padding: 40px;
 	}
 }

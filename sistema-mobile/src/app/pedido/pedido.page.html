@@ -15,6 +15,12 @@
   </ion-refresher>
 
   <div class="pedido-shell">
+    <section class="pedido-header">
+      <p class="eyebrow">Pedidos</p>
+      <h2>Meus pedidos</h2>
+      <p>Acompanhe os pedidos finalizados pelo catalogo mobile.</p>
+    </section>
+
     <div *ngIf="!carregando && pedidos.length === 0" class="estado-vazio">
       <ion-icon name="receipt-outline"></ion-icon>
       <h2>Nenhum pedido ainda</h2>

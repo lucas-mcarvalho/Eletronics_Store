@@ -1,6 +1,7 @@
 export class ItemPedido {
   public id = 0;
   public produto_id = 0;
+  public produto_estoque = 0;
   public produto = '';
   public nome_produto = '';
   public quantidade = 0;

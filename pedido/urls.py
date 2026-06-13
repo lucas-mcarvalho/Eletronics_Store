@@ -1,6 +1,11 @@
 from django.urls import path
 
 from .views import (
+    CarrinhoApiAdicionar,
+    CarrinhoApiAtualizarItem,
+    CarrinhoApiDetalhar,
+    CarrinhoApiFinalizar,
+    CarrinhoApiRemoverItem,
     ItemPedidoCadastrar,
     ItemPedidoEditar,
     ItemPedidoExcluir,
@@ -27,6 +32,11 @@ urlpatterns = [
     path('api/listar/', PedidoApiListar.as_view(), name='pedido_api_listar'),
     path('api/novo/', PedidoApiCadastrar.as_view(), name='pedido_api_cadastrar'),
     path('api/finalizar-produto/', PedidoApiFinalizarProduto.as_view(), name='pedido_api_finalizar_produto'),
+    path('api/carrinho/', CarrinhoApiDetalhar.as_view(), name='carrinho_api_detalhar'),
+    path('api/carrinho/adicionar/', CarrinhoApiAdicionar.as_view(), name='carrinho_api_adicionar'),
+    path('api/carrinho/itens/<int:item_id>/atualizar/', CarrinhoApiAtualizarItem.as_view(), name='carrinho_api_atualizar_item'),
+    path('api/carrinho/itens/<int:item_id>/remover/', CarrinhoApiRemoverItem.as_view(), name='carrinho_api_remover_item'),
+    path('api/carrinho/finalizar/', CarrinhoApiFinalizar.as_view(), name='carrinho_api_finalizar'),
     path('api/editar/<int:pk>/', PedidoApiDetalharAtualizar.as_view(), name='pedido_api_editar'),
     path('api/deletar/<int:pk>/', PedidoApiDeletar.as_view(), name='pedido_api_deletar'),
     path('novo/', PedidoCadastrar.as_view(), name='pedido_cadastrar'),

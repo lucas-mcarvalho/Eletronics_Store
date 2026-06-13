@@ -6,18 +6,22 @@ from pedido.models import ItemPedido, Pagamento, Pedido
 class SerializadorItemPedido(ModelSerializer):
     produto = SerializerMethodField()
     produto_id = SerializerMethodField()
+    produto_estoque = SerializerMethodField()
     nome_produto = SerializerMethodField()
     subtotal = SerializerMethodField()
 
     class Meta:
         model = ItemPedido
-        fields = ['id', 'produto_id', 'produto', 'nome_produto', 'quantidade', 'preco_unitario', 'subtotal']
+        fields = ['id', 'produto_id', 'produto', 'produto_estoque', 'nome_produto', 'quantidade', 'preco_unitario', 'subtotal']
 
     def get_produto_id(self, instancia):
         return instancia.produto_id
 
     def get_produto(self, instancia):
         return instancia.produto.nome
+
+    def get_produto_estoque(self, instancia):
+        return instancia.produto.estoque
 
     def get_nome_produto(self, instancia):
         return instancia.produto.nome

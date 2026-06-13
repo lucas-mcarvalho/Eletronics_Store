@@ -335,6 +335,157 @@ class PedidoApiFinalizarProduto(APIView):
         return Response(SerializadorPedido(pedido).data, status=status.HTTP_201_CREATED)
 
 
+class CarrinhoApiDetalhar(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        carrinho = obter_carrinho(request.user)
+
+        if not carrinho:
+            return Response({
+                'id': 0,
+                'status': Pedido.STATUS_ABERTO,
+                'valor_total': '0.00',
+                'itens': [],
+            })
+
+        return Response(SerializadorPedido(carrinho).data)
+
+
+class CarrinhoApiAdicionar(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        produto_id = request.data.get('produto_id')
+
+        try:
+            quantidade = int(request.data.get('quantidade') or 1)
+        except (TypeError, ValueError):
+            quantidade = 1
+
+        if quantidade < 1:
+            quantidade = 1
+
+        produto = get_object_or_404(Produto, id=produto_id, ativo=True, estoque__gt=0)
+        carrinho = obter_ou_criar_carrinho(request.user)
+
+        item, _ = ItemPedido.objects.get_or_create(
+            pedido=carrinho,
+            produto=produto,
+            defaults={
+                'quantidade': 0,
+                'preco_unitario': produto.preco,
+            },
+        )
+        item.quantidade = min(item.quantidade + quantidade, produto.estoque)
+        item.preco_unitario = produto.preco
+        item.save()
+
+        carrinho = Pedido.objects.prefetch_related('itens__produto').get(id=carrinho.id)
+        return Response(SerializadorPedido(carrinho).data, status=status.HTTP_201_CREATED)
+
+
+class CarrinhoApiAtualizarItem(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, item_id):
+        item = get_object_or_404(
+            ItemPedido.objects.select_related('pedido', 'produto'),
+            id=item_id,
+            pedido__usuario=request.user,
+            pedido__status=Pedido.STATUS_ABERTO,
+        )
+
+        try:
+            quantidade = int(request.data.get('quantidade') or 1)
+        except (TypeError, ValueError):
+            quantidade = 1
+
+        if quantidade < 1:
+            quantidade = 1
+
+        if item.produto.estoque < 1:
+            item.delete()
+            carrinho = obter_ou_criar_carrinho(request.user)
+            return Response({
+                'erro': 'Produto sem estoque e removido do carrinho.',
+                'carrinho': SerializadorPedido(carrinho).data,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if quantidade > item.produto.estoque:
+            quantidade = item.produto.estoque
+
+        item.quantidade = quantidade
+        item.preco_unitario = item.produto.preco
+        item.save()
+
+        carrinho = Pedido.objects.prefetch_related('itens__produto').get(id=item.pedido_id)
+        return Response(SerializadorPedido(carrinho).data)
+
+
+class CarrinhoApiRemoverItem(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, item_id):
+        item = get_object_or_404(
+            ItemPedido,
+            id=item_id,
+            pedido__usuario=request.user,
+            pedido__status=Pedido.STATUS_ABERTO,
+        )
+        pedido_id = item.pedido_id
+        item.delete()
+
+        carrinho = Pedido.objects.prefetch_related('itens__produto').get(id=pedido_id)
+        return Response(SerializadorPedido(carrinho).data)
+
+
+class CarrinhoApiFinalizar(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        carrinho = obter_carrinho(request.user)
+        forma_pagamento = request.data.get('forma_pagamento')
+        formas_validas = [opcao[0] for opcao in Pagamento.FORMA_CHOICES]
+
+        if not carrinho or not carrinho.itens.exists():
+            return Response({'erro': 'Seu carrinho esta vazio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if forma_pagamento not in formas_validas:
+            return Response({'erro': 'Escolha uma forma de pagamento valida.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            carrinho = Pedido.objects.select_for_update().get(id=carrinho.id)
+            itens = list(carrinho.itens.select_related('produto'))
+
+            for item in itens:
+                produto = Produto.objects.select_for_update().get(id=item.produto_id)
+
+                if produto.estoque < item.quantidade:
+                    return Response({
+                        'erro': f'Estoque insuficiente para {produto.nome}.',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            for item in itens:
+                produto = Produto.objects.select_for_update().get(id=item.produto_id)
+                produto.estoque -= item.quantidade
+                produto.save()
+
+            carrinho.status = Pedido.STATUS_FECHADO
+            carrinho.observacao = 'Pedido mobile finalizado pelo carrinho com pagamento simulado aprovado.'
+            carrinho.save()
+            pagamento, _ = criar_pagamento_simulado(carrinho, forma_pagamento)
+            atualizar_status_pagamento(pagamento, Pagamento.STATUS_APROVADO)
+
+        pedido = Pedido.objects.select_related('usuario', 'pagamento').prefetch_related('itens__produto').get(id=carrinho.id)
+        return Response(SerializadorPedido(pedido).data, status=status.HTTP_201_CREATED)
+
+
 class PagamentoApiSimular(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]

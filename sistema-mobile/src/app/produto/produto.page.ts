@@ -6,8 +6,9 @@ import { IonicModule, LoadingController, NavController, ToastController } from '
 import { Storage } from '@ionic/storage-angular';
 
 import { Usuario } from '../home/usuario.models';
+import { ItemPedido, Pedido } from '../pedido/pedido.model';
 import { ApiService } from '../services/api.service';
-import { Categoria, Produto } from './produto.model';
+import { Produto } from './produto.model';
 
 @Component({
   selector: 'app-produto',
@@ -20,26 +21,18 @@ import { Categoria, Produto } from './produto.model';
 export class ProdutoPage implements OnInit {
   public usuario: Usuario = new Usuario();
   public produtos: Produto[] = [];
-  public categorias: Categoria[] = [];
+  public carrinho: Pedido = new Pedido();
   public carregandoLista = false;
+  public carregandoCarrinho = false;
   public mensagemErro = '';
   public termoBusca = '';
-  public abaAtual: 'catalogo' | 'categoria' | 'produto' = 'catalogo';
-  public salvandoCategoria = false;
-  public salvandoProduto = false;
-  public finalizandoProdutoId = 0;
+  public abaAtual: 'catalogo' | 'carrinho' = 'catalogo';
+  public slideDestaqueAtual = 0;
+  public adicionandoProdutoId = 0;
+  public itemAtualizandoId = 0;
+  public itemRemovendoId = 0;
+  public finalizandoCarrinho = false;
   public formaPagamento = 'pix';
-  public novaCategoria: Categoria = new Categoria();
-  public novoProduto = {
-    nome: '',
-    descricao: '',
-    preco: '',
-    categoria: 0,
-    modelo: '',
-    estoque: 0,
-    garantia_meses: 12,
-    ativo: true,
-  };
 
   private storageReady?: Promise<Storage>;
 
@@ -69,10 +62,6 @@ export class ProdutoPage implements OnInit {
     }
   }
 
-  get usuarioAdmin(): boolean {
-    return this.usuario.is_staff;
-  }
-
   get produtosFiltrados(): Produto[] {
     const termo = this.termoBusca.trim().toLowerCase();
 
@@ -87,6 +76,28 @@ export class ProdutoPage implements OnInit {
         produto.codigo_sku.toLowerCase().includes(termo)
       );
     });
+  }
+
+  get totalItensCarrinho(): number {
+    return this.carrinho.itens.reduce((total, item) => total + Number(item.quantidade || 0), 0);
+  }
+
+  get carrinhoTemItens(): boolean {
+    return this.totalItensCarrinho > 0;
+  }
+
+  get produtosDestaque(): Produto[] {
+    return this.produtos.filter((produto) => produto.estoque > 0).slice(0, 6);
+  }
+
+  get produtoDestaqueAtual(): Produto | undefined {
+    const destaques = this.produtosDestaque;
+
+    if (destaques.length === 0) {
+      return undefined;
+    }
+
+    return destaques[Math.min(this.slideDestaqueAtual, destaques.length - 1)];
   }
 
   private getStorage(): Promise<Storage> {
@@ -111,7 +122,10 @@ export class ProdutoPage implements OnInit {
     this.api.get('/produtos/api/listar/', this.usuario)
       .then(async (resposta: HttpResponse) => {
         if (resposta.status === 200 && Array.isArray(resposta.data)) {
-          this.produtos = resposta.data.map((produto: any) => Object.assign(new Produto(), produto));
+          this.produtos = resposta.data
+            .map((produto: any) => Object.assign(new Produto(), produto))
+            .filter((produto: Produto) => produto.ativo && produto.estoque > 0);
+          this.normalizarSlideDestaque();
         } else {
           this.produtos = [];
           this.mensagemErro = 'Nao foi possivel carregar os produtos cadastrados.';
@@ -131,84 +145,9 @@ export class ProdutoPage implements OnInit {
       });
   }
 
-  async consultarCategoriasSistemaWeb(): Promise<void> {
-    try {
-      const resposta = await this.api.get('/categorias/api/listar/', this.usuario);
-
-      if (resposta.status === 200 && Array.isArray(resposta.data)) {
-        this.categorias = resposta.data.map((categoria: any) => Object.assign(new Categoria(), categoria));
-      }
-    } catch (error) {
-      console.error('Erro ao consultar categorias:', error);
-    }
-  }
-
   async carregarDados(): Promise<void> {
-    await this.consultarCategoriasSistemaWeb();
     await this.consultarProdutosSistemaWeb();
-  }
-
-  async cadastrarCategoria(): Promise<void> {
-    if (!this.novaCategoria.nome.trim()) {
-      await this.exibirToast('Informe o nome da categoria.');
-      return;
-    }
-
-    this.salvandoCategoria = true;
-
-    try {
-      const resposta = await this.api.post('/categorias/api/nova/', this.novaCategoria, this.usuario);
-
-      if (resposta.status === 201) {
-        await this.exibirToast('Categoria cadastrada com sucesso!');
-        this.novaCategoria = new Categoria();
-        await this.consultarCategoriasSistemaWeb();
-        this.abaAtual = 'produto';
-      } else {
-        await this.exibirToast(resposta.data?.erro || 'Nao foi possivel cadastrar a categoria.');
-      }
-    } catch (error) {
-      console.error('Erro ao cadastrar categoria:', error);
-      await this.exibirToast('Erro ao cadastrar categoria. Verifique o backend.');
-    } finally {
-      this.salvandoCategoria = false;
-    }
-  }
-
-  async cadastrarProduto(): Promise<void> {
-    if (!this.novoProduto.nome || !this.novoProduto.descricao || !this.novoProduto.preco || !this.novoProduto.categoria) {
-      await this.exibirToast('Preencha nome, descricao, preco e categoria.');
-      return;
-    }
-
-    this.salvandoProduto = true;
-
-    try {
-      const resposta = await this.api.post('/produtos/api/novo/', this.novoProduto, this.usuario);
-
-      if (resposta.status === 201) {
-        await this.exibirToast('Produto cadastrado com sucesso!');
-        this.novoProduto = {
-          nome: '',
-          descricao: '',
-          preco: '',
-          categoria: 0,
-          modelo: '',
-          estoque: 0,
-          garantia_meses: 12,
-          ativo: true,
-        };
-        await this.consultarProdutosSistemaWeb();
-        this.abaAtual = 'catalogo';
-      } else {
-        await this.exibirToast(resposta.data?.erro || 'Nao foi possivel cadastrar o produto.');
-      }
-    } catch (error) {
-      console.error('Erro ao cadastrar produto:', error);
-      await this.exibirToast('Erro ao cadastrar produto. Verifique o backend.');
-    } finally {
-      this.salvandoProduto = false;
-    }
+    await this.carregarCarrinho();
   }
 
   obterImagem(url?: string): string {
@@ -216,11 +155,8 @@ export class ProdutoPage implements OnInit {
       return 'assets/icon/favicon.png';
     }
 
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-
-    return this.api.url(url);
+    const imagemUrl = url.startsWith('http://') || url.startsWith('https://') ? url : this.api.url(url);
+    return this.anexarTokenImagem(imagemUrl);
   }
 
   imagemProduto(produto: Produto): string {
@@ -231,28 +167,148 @@ export class ProdutoPage implements OnInit {
     return produto.nome_categoria || produto.categoria || '';
   }
 
-  async comprarProduto(produto: Produto): Promise<void> {
-    this.finalizandoProdutoId = produto.id;
+  async carregarCarrinho(): Promise<void> {
+    this.carregandoCarrinho = true;
 
     try {
-      const resposta = await this.api.post('/pedidos/api/finalizar-produto/', {
+      const resposta = await this.api.get('/pedidos/api/carrinho/', this.usuario);
+
+      if (resposta.status === 200) {
+        this.atualizarCarrinhoLocal(resposta.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar carrinho:', error);
+      await this.exibirToast('Erro ao carregar carrinho. Verifique o backend.');
+    } finally {
+      this.carregandoCarrinho = false;
+    }
+  }
+
+  async adicionarAoCarrinho(produto: Produto): Promise<void> {
+    this.adicionandoProdutoId = produto.id;
+
+    try {
+      const resposta = await this.api.post('/pedidos/api/carrinho/adicionar/', {
         produto_id: produto.id,
         quantidade: 1,
+      }, this.usuario);
+
+      if (resposta.status === 201) {
+        this.atualizarCarrinhoLocal(resposta.data);
+        await this.exibirToast('Produto adicionado ao carrinho.');
+        return;
+      }
+
+      await this.exibirToast(resposta.data?.erro || 'Nao foi possivel adicionar ao carrinho.');
+    } catch (error) {
+      console.error('Erro ao adicionar ao carrinho:', error);
+      await this.exibirToast('Erro ao adicionar ao carrinho. Verifique o backend.');
+    } finally {
+      this.adicionandoProdutoId = 0;
+    }
+  }
+
+  mudarDestaque(delta: number): void {
+    const total = this.produtosDestaque.length;
+
+    if (total < 2) {
+      return;
+    }
+
+    this.slideDestaqueAtual = (this.slideDestaqueAtual + delta + total) % total;
+  }
+
+  selecionarDestaque(index: number): void {
+    if (index < 0 || index >= this.produtosDestaque.length) {
+      return;
+    }
+
+    this.slideDestaqueAtual = index;
+  }
+
+  async atualizarItemCarrinho(item: ItemPedido, quantidade: number): Promise<void> {
+    if (quantidade < 1) {
+      quantidade = 1;
+    }
+
+    this.itemAtualizandoId = item.id;
+
+    try {
+      const resposta = await this.api.post(`/pedidos/api/carrinho/itens/${item.id}/atualizar/`, {
+        quantidade,
+      }, this.usuario);
+
+      if (resposta.status === 200) {
+        this.atualizarCarrinhoLocal(resposta.data);
+        return;
+      }
+
+      if (resposta.data?.carrinho) {
+        this.atualizarCarrinhoLocal(resposta.data.carrinho);
+      }
+
+      await this.exibirToast(resposta.data?.erro || 'Nao foi possivel atualizar o carrinho.');
+    } catch (error) {
+      console.error('Erro ao atualizar carrinho:', error);
+      await this.exibirToast('Erro ao atualizar carrinho. Verifique o backend.');
+    } finally {
+      this.itemAtualizandoId = 0;
+    }
+  }
+
+  async alterarQuantidadeCarrinho(item: ItemPedido, delta: number): Promise<void> {
+    await this.atualizarItemCarrinho(item, Number(item.quantidade || 0) + delta);
+  }
+
+  async removerItemCarrinho(item: ItemPedido): Promise<void> {
+    this.itemRemovendoId = item.id;
+
+    try {
+      const resposta = await this.api.post(`/pedidos/api/carrinho/itens/${item.id}/remover/`, {}, this.usuario);
+
+      if (resposta.status === 200) {
+        this.atualizarCarrinhoLocal(resposta.data);
+        await this.exibirToast('Item removido do carrinho.');
+        return;
+      }
+
+      await this.exibirToast(resposta.data?.erro || 'Nao foi possivel remover o item.');
+    } catch (error) {
+      console.error('Erro ao remover item:', error);
+      await this.exibirToast('Erro ao remover item. Verifique o backend.');
+    } finally {
+      this.itemRemovendoId = 0;
+    }
+  }
+
+  async finalizarCarrinhoAtual(): Promise<void> {
+    if (!this.carrinhoTemItens) {
+      await this.exibirToast('Seu carrinho esta vazio.');
+      return;
+    }
+
+    this.finalizandoCarrinho = true;
+
+    try {
+      const resposta = await this.api.post('/pedidos/api/carrinho/finalizar/', {
         forma_pagamento: this.formaPagamento,
       }, this.usuario);
 
       if (resposta.status === 201) {
+        this.carrinho = new Pedido();
+        this.abaAtual = 'catalogo';
         await this.exibirToast('Pedido finalizado e pagamento aprovado!');
-        await this.carregarDados();
+        await this.consultarProdutosSistemaWeb();
+        this.controleNavegacao.navigateForward('/pedido');
         return;
       }
 
-      await this.exibirToast(resposta.data?.erro || 'Nao foi possivel finalizar o pedido.');
+      await this.exibirToast(resposta.data?.erro || 'Nao foi possivel finalizar o carrinho.');
     } catch (error) {
-      console.error('Erro ao finalizar pedido:', error);
-      await this.exibirToast('Erro ao finalizar pedido. Verifique o backend.');
+      console.error('Erro ao finalizar carrinho:', error);
+      await this.exibirToast('Erro ao finalizar carrinho. Verifique o backend.');
     } finally {
-      this.finalizandoProdutoId = 0;
+      this.finalizandoCarrinho = false;
     }
   }
 
@@ -260,9 +316,17 @@ export class ProdutoPage implements OnInit {
     this.controleNavegacao.navigateForward('/pedido');
   }
 
+  abrirCarrinho(): void {
+    this.abaAtual = 'carrinho';
+  }
+
   formatarPreco(produto: Produto): string {
     const valor = Number(produto.preco || 0);
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  formatarValor(valor: string | number): string {
+    return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   async atualizarLista(event?: CustomEvent): Promise<void> {
@@ -288,5 +352,27 @@ export class ProdutoPage implements OnInit {
     });
 
     await toast.present();
+  }
+
+  private atualizarCarrinhoLocal(dados: any): void {
+    this.carrinho = Object.assign(new Pedido(), dados || {});
+    this.carrinho.itens = Array.isArray(dados?.itens)
+      ? dados.itens.map((item: any) => Object.assign(new ItemPedido(), item))
+      : [];
+  }
+
+  private normalizarSlideDestaque(): void {
+    if (this.slideDestaqueAtual >= this.produtosDestaque.length) {
+      this.slideDestaqueAtual = 0;
+    }
+  }
+
+  private anexarTokenImagem(url: string): string {
+    if (!this.usuario.token || !url.includes('/media/produtos/')) {
+      return url;
+    }
+
+    const separador = url.includes('?') ? '&' : '?';
+    return `${url}${separador}token=${encodeURIComponent(this.usuario.token)}`;
   }
 }

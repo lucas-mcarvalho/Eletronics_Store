@@ -12,6 +12,7 @@ export class Produto {
   public imagem_url: string;
   public estoque: number;
   public garantia_meses: number;
+  public ativo: boolean;
 
   constructor() {
     this.id = 0;
@@ -27,19 +28,6 @@ export class Produto {
     this.imagem_url = '';
     this.estoque = 0;
     this.garantia_meses = 0;
-  }
-}
-
-export class Categoria {
-  public id: number;
-  public nome: string;
-  public descricao: string;
-  public ativo: boolean;
-
-  constructor() {
-    this.id = 0;
-    this.nome = '';
-    this.descricao = '';
     this.ativo = true;
   }
 }
